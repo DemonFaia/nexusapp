@@ -71,7 +71,7 @@ const P = "#5452F6";
 
 /* ── CONFIGURACIÓN ── Reemplaza con tus datos */
 const CONFIG = {
-  CLIENT_ID: "714180410774-s7p0d3f1loigsfl7knm9i8rf2p7lt8td.apps.googleusercontent.com",
+  CLIENT_ID: "714180410774-s7p0d3f1loigsfl7knm9i8rf2p7lt8td.googleusercontent.com",
   SHEET_ID:  "1QHPEMZMAHKin7K60uJFS8sMzUNmOZwS-R7YzHwABw9g",
 };
 
@@ -403,7 +403,7 @@ function ContactDetail({contact:c,onBack,onCopy,cKey,onShare}){
 
 /* ── LOGIN SCREEN ── */
 function LoginScreen({onLogin,loading}){
-  const isConfigured = CONFIG.CLIENT_ID !== "714180410774-s7p0d3f1loigsfl7knm9i8rf2p7lt8td.apps.googleusercontent.com";
+  const isConfigured = CONFIG.CLIENT_ID !== "TU_CLIENT_ID_AQUI.apps.googleusercontent.com";
   return(
     <div style={{minHeight:"100dvh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 32px",background:"#ECEEF5"}}>
       <div style={{width:88,height:88,borderRadius:26,background:`linear-gradient(135deg,#1D1B8A,${P})`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:24,boxShadow:`0 16px 40px rgba(84,82,246,0.35)`}}>
@@ -754,7 +754,7 @@ function App(){
   const [refreshing,setRef]    = useState(false);
   const [refreshProg,setRefP]  = useState(null);
   const [knownIds,setKnown]    = useState(new Set());
-  const isConfigured = CONFIG.CLIENT_ID !== "714180410774-s7p0d3f1loigsfl7knm9i8rf2p7lt8td.apps.googleusercontent.com";
+  const isConfigured = CONFIG.CLIENT_ID !== "TU_CLIENT_ID_AQUI.apps.googleusercontent.com";
 
   const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(null),2300);};
   const goTab=t=>setTab(t);
