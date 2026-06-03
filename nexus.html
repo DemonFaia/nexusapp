@@ -238,6 +238,7 @@ const IContrast=({c})=><svg width={18} height={18} {...sv(c)}><circle cx="12" cy
 const IMail  =({c})=><svg width={18} height={18} {...sv(c)}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
 const IBank  =({c})=><svg width={18} height={18} {...sv(c)}><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>;
 const IFilt  =({c})=><svg width={18} height={18} {...sv(c)}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
+const ITrash =({c,s})=><svg width={s||18} height={s||18} {...sv(c)}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>;
 
 /* ── BANK LOGO ── */
 function BankLogo({bank,size=22}){
@@ -643,11 +644,19 @@ function HomeScreen({user,txs,accounts,hide,setHide,onRefresh,refreshing,refresh
   );
 }
 
-function AccountsScreen({accounts,hide,showToast}){
+function AccountsScreen({accounts,onDeleteAccount,hide,showToast}){
+  const [confirmIdx,setConfirmIdx] = useState(null);
   const total=accounts.reduce((s,a)=>s+(parseInt(a.balance)||0),0)||1;
+  const handleDelete = (i) => {
+    onDeleteAccount(i);
+    setConfirmIdx(null);
+    showToast("Cuenta eliminada");
+  };
   return(
     <div className="scr">
       <div className="hdr"><div style={{fontSize:22,fontWeight:800}}>Mis cuentas</div></div>
+
+      {/* Summary bar */}
       <div className="cardL" style={{margin:"0 20px 22px",padding:"18px 20px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div>
@@ -663,22 +672,56 @@ function AccountsScreen({accounts,hide,showToast}){
           {accounts.map((a,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:2,background:a.gA||"#888",flexShrink:0}}/><span style={{fontSize:10,color:"var(--t3,#9CA3AF)",fontWeight:600}}>{(a.bank||'').slice(0,4)}</span></div>)}
         </div>
       </div>
+
+      {/* Account cards */}
       <div style={{display:"flex",flexDirection:"column",gap:18,padding:"0 20px"}}>
         {accounts.map((a,i)=>(
           <div key={i}>
             <BankCard account={a} hide={hide}/>
-            <div style={{display:"flex",justifyContent:"space-between",padding:"9px 6px 0"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 6px 0"}}>
               <div style={{fontSize:12,color:"var(--t3,#9CA3AF)"}}>{a.type} · ••••{(a.number||'').slice(-4)}</div>
-              <div style={{fontSize:12,fontWeight:700,color:"var(--accent,#5452F6)"}}>{(((parseInt(a.balance)||0)/total)*100).toFixed(1)}%</div>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--accent,#5452F6)"}}>{(((parseInt(a.balance)||0)/total)*100).toFixed(1)}%</div>
+                <button onClick={()=>setConfirmIdx(i)} style={{width:32,height:32,borderRadius:9,background:"rgba(239,68,68,0.08)",border:"1.5px solid rgba(239,68,68,0.15)",color:"#EF4444",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Eliminar cuenta">
+                  <ITrash c="#EF4444" s={15}/>
+                </button>
+              </div>
             </div>
           </div>
         ))}
       </div>
+
       <div style={{padding:"22px 20px"}}>
-        <button onClick={()=>showToast("Edita tus cuentas en Ajustes → Re-ejecutar configuración")} style={{width:"100%",padding:"14px",borderRadius:14,background:"var(--surf,#fff)",border:`1.5px dashed var(--accent,#5452F6)`,color:"var(--accent,#5452F6)",fontSize:14,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+        <button onClick={()=>showToast("Agrega cuentas en Ajustes → Re-configurar cuentas")} style={{width:"100%",padding:"14px",borderRadius:14,background:"var(--surf,#fff)",border:`1.5px dashed var(--accent,#5452F6)`,color:"var(--accent,#5452F6)",fontSize:14,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
           <IPlus c="var(--accent,#5452F6)" s={16}/>Agregar cuenta
         </button>
       </div>
+
+      {/* Confirm delete modal */}
+      {confirmIdx!==null&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50,padding:"0 0 env(safe-area-inset-bottom)"}}>
+          <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"28px 24px 20px"}}>
+            <div style={{width:48,height:48,borderRadius:"50%",background:"rgba(239,68,68,0.1)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+              <ITrash c="#EF4444" s={22}/>
+            </div>
+            <div style={{fontSize:18,fontWeight:800,textAlign:"center",marginBottom:8}}>
+              Eliminar cuenta
+            </div>
+            <div style={{fontSize:14,color:"var(--t2,#6F767E)",textAlign:"center",marginBottom:24,lineHeight:1.6}}>
+              ¿Eliminar <strong>{accounts[confirmIdx]?.bank}</strong> ({accounts[confirmIdx]?.type})?<br/>
+              Solo se borra de la app, no afecta tu cuenta real.
+            </div>
+            <div style={{display:"flex",gap:12}}>
+              <button onClick={()=>setConfirmIdx(null)} style={{flex:1,padding:"14px",borderRadius:14,background:"var(--bg,#F0F2FA)",border:"none",fontSize:15,fontWeight:600,fontFamily:"'Inter',sans-serif",cursor:"pointer",color:"var(--t2,#6F767E)"}}>
+                Cancelar
+              </button>
+              <button onClick={()=>handleDelete(confirmIdx)} style={{flex:1,padding:"14px",borderRadius:14,background:"#EF4444",border:"none",color:"white",fontSize:15,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer"}}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1064,6 +1107,18 @@ function App(){
 
   const handleSignOut = () => { setToken(null); setUser(null); };
 
+  const handleDeleteAccount = async (idx) => {
+    const updated = accounts.filter((_,i)=>i!==idx);
+    setAccounts(updated);
+    // Reescribir hoja Cuentas en Sheets
+    if(token && CONFIG.SHEET_ID !== "TU_SHEET_ID_AQUI") {
+      try {
+        const rows = [['Banco','Tipo','Numero','Saldo','gA','gB'], ...updated.map(a=>[a.bank,a.type,a.number,a.balance||0,'',''])];
+        await sheetsUpdate(token,'Cuentas!A1:F'+(rows.length), rows);
+      } catch(e) { console.log('Error actualizando Sheet:', e); }
+    }
+  };
+
   const TABS=[
     {id:"inicio",    label:"Inicio",    I:IHome},
     {id:"cuentas",   label:"Cuentas",   I:ICrd},
@@ -1093,7 +1148,7 @@ function App(){
     <div className={`nx${settings.dark?" dark":""}${settings.highContrast?" hc":""}`} style={{"--accent":accent,"--fs":fsMap[settings.fontSize]}}>
       {toast&&<div className="toast">{toast}</div>}
       {tab==="inicio"      &&<HomeScreen user={user} txs={txs} accounts={accounts} hide={hide} setHide={setHide} onRefresh={handleRefresh} refreshing={refreshing} refreshProg={refreshProg} showToast={showToast} goTab={goTab} accent={accent}/>}
-      {tab==="cuentas"     &&<AccountsScreen accounts={accounts} hide={hide} showToast={showToast}/>}
+      {tab==="cuentas"     &&<AccountsScreen accounts={accounts} onDeleteAccount={handleDeleteAccount} hide={hide} showToast={showToast}/>}
       {tab==="historial"   &&<HistorialScreen txs={txs} accounts={accounts} onRefresh={handleRefresh} refreshing={refreshing} refreshProg={refreshProg}/>}
       {tab==="analiticas"  &&<AnalyticsScreen txs={txs}/>}
       {tab==="ajustes"     &&<SettingsScreen user={user} settings={settings} onSettings={setSettings} onSignOut={handleSignOut} onRerunOnboarding={()=>setOnboarding(true)} showToast={showToast}/>}
