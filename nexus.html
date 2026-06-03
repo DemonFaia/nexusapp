@@ -859,9 +859,15 @@ function AnalyticsScreen({txs}){
 }
 
 /* ── SETTINGS SCREEN ── */
-function SettingsScreen({user,settings,onSettings,onSignOut,onRerunOnboarding,showToast}){
+function SettingsScreen({user,settings,onSettings,onSignOut,onRerunOnboarding,onSaveProfile,showToast}){
   const {dark,accent,fontSize,highContrast} = settings;
   const S = (k,v) => onSettings({...settings,[k]:v});
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editName,  setEditName]  = useState(user?.name||'');
+  const [editEmail, setEditEmail] = useState(user?.email||'');
+
+  // Sync local edit state when user prop changes
+  useEffect(()=>{ setEditName(user?.name||''); setEditEmail(user?.email||''); },[user]);
 
   const Row = ({icon,label,sub,right}) => (
     <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 18px",borderBottom:"1px solid rgba(128,128,128,0.08)"}}>
@@ -887,13 +893,53 @@ function SettingsScreen({user,settings,onSettings,onSignOut,onRerunOnboarding,sh
             ? <img src={user.picture} style={{width:54,height:54,borderRadius:"50%",border:`2px solid ${accent}`}} alt="foto"/>
             : <div style={{width:54,height:54,borderRadius:"50%",background:`linear-gradient(135deg,${accent},#8B5BE8)`,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:700,fontSize:20}}>{ini(user?.name||'AG')}</div>
           }
-          <div>
+          <div style={{flex:1}}>
             <div style={{fontSize:16,fontWeight:700}}>{user?.name||'Usuario'}</div>
             <div style={{fontSize:13,color:"var(--t3,#9CA3AF)",marginTop:2}}>{user?.email||'Sin correo'}</div>
           </div>
+          <button onClick={()=>setEditingProfile(true)} style={{padding:"7px 14px",borderRadius:10,background:`${accent}18`,border:`1.5px solid ${accent}33`,color:accent,fontSize:12,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer"}}>
+            Editar
+          </button>
         </div>
         <Row icon={<IMail c={accent}/>} label="Correo conectado" sub={user?.email||'—'} right={<div style={{fontSize:11,color:"#10B981",fontWeight:700,background:"rgba(16,185,129,0.1)",padding:"3px 8px",borderRadius:8}}>Activo</div>}/>
       </div>
+
+      {/* Edit Profile Modal */}
+      {editingProfile&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50,padding:"0 0 env(safe-area-inset-bottom)"}}>
+          <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"28px 24px 24px"}}>
+            <div style={{fontSize:18,fontWeight:800,marginBottom:6}}>Editar perfil</div>
+            <div style={{fontSize:13,color:"var(--t2,#6F767E)",marginBottom:24}}>Los cambios se guardan en tu Google Sheet.</div>
+
+            {/* Avatar preview */}
+            <div style={{display:"flex",justifyContent:"center",marginBottom:22}}>
+              {user?.picture
+                ? <img src={user.picture} style={{width:72,height:72,borderRadius:"50%",border:`3px solid ${accent}`}} alt="foto"/>
+                : <div style={{width:72,height:72,borderRadius:"50%",background:`linear-gradient(135deg,${accent},#8B5BE8)`,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:700,fontSize:24}}>{ini(editName||'?')}</div>
+              }
+            </div>
+
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Nombre</div>
+              <input className="inp" value={editName} onChange={e=>setEditName(e.target.value)} placeholder="Tu nombre"/>
+            </div>
+            <div style={{marginBottom:24}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Email de contacto</div>
+              <input className="inp" value={editEmail} onChange={e=>setEditEmail(e.target.value)} placeholder="tu@email.com" type="email"/>
+              <div style={{fontSize:11,color:"var(--t3,#9CA3AF)",marginTop:6}}>Este email es solo para mostrarlo en la app. No cambia tu cuenta Google.</div>
+            </div>
+
+            <div style={{display:"flex",gap:12}}>
+              <button onClick={()=>setEditingProfile(false)} style={{flex:1,padding:"14px",borderRadius:14,background:"var(--bg,#F0F2FA)",border:"none",fontSize:15,fontWeight:600,fontFamily:"'Inter',sans-serif",cursor:"pointer",color:"var(--t2,#6F767E)"}}>
+                Cancelar
+              </button>
+              <button onClick={()=>onSaveProfile({name:editName,email:editEmail})} style={{flex:1,padding:"14px",borderRadius:14,background:accent,border:"none",color:"white",fontSize:15,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer"}}>
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Apariencia */}
       <div className="stitle">Apariencia</div>
@@ -1113,6 +1159,16 @@ function App(){
 
   const handleSignOut = () => { setToken(null); setUser(null); };
 
+  const handleSaveProfile = async ({name, email}) => {
+    setUser(u => ({...u, name, email}));
+    if(token && CONFIG.SHEET_ID !== "TU_SHEET_ID_AQUI") {
+      try {
+        await sheetsUpdate(token,'Config!A1:B3',[['nombre',name],['configurado','true'],['email',email]]);
+      } catch(e) {}
+    }
+    showToast("Perfil actualizado ✓");
+  };
+
   const handleDeleteAccount = async (idx) => {
     const updated = accounts.filter((_,i)=>i!==idx);
     setAccounts(updated);
@@ -1159,7 +1215,7 @@ function App(){
       {tab==="cuentas"     &&<AccountsScreen accounts={accounts} onDeleteAccount={handleDeleteAccount} hide={hide} showToast={showToast}/>}
       {tab==="historial"   &&<HistorialScreen txs={txs} accounts={accounts} onRefresh={handleRefresh} refreshing={refreshing} refreshProg={refreshProg}/>}
       {tab==="analiticas"  &&<AnalyticsScreen txs={txs}/>}
-      {tab==="ajustes"     &&<SettingsScreen user={user} settings={settings} onSettings={setSettings} onSignOut={handleSignOut} onRerunOnboarding={()=>setOnboarding(true)} showToast={showToast}/>}
+      {tab==="ajustes"     &&<SettingsScreen user={user} settings={settings} onSettings={setSettings} onSignOut={handleSignOut} onRerunOnboarding={()=>setOnboarding(true)} onSaveProfile={handleSaveProfile} showToast={showToast}/>}
       <nav className="bnav">
         {TABS.map(({id,label,I})=>(
           <button key={id} className={`nit${tab===id?" on":""}`} onClick={()=>goTab(id)}>
