@@ -72,7 +72,7 @@ const { useState, useMemo, useEffect } = React;
 
 /* ── CONFIG ── */
 const CONFIG = {
-  CLIENT_ID: "714180410774-s7p0d3f1loigsfl7knm9i8rf2p7lt8td.apps.googleusercontent.com",
+  CLIENT_ID: "T714180410774-s7p0d3f1loigsfl7knm9i8rf2p7lt8td.apps.googleusercontent.com",
   SHEET_ID:  "1QHPEMZMAHKin7K60uJFS8sMzUNmOZwS-R7YzHwABw9g",
 };
 
@@ -102,6 +102,9 @@ const sheetsAppend = async (token, range, values) => {
 };
 const sheetsUpdate = async (token, range, values) => {
   await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`, { method:'PUT', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'}, body:JSON.stringify({values}) });
+};
+const sheetsClear = async (token, range) => {
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}:clear`, { method:'POST', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'} });
 };
 const gmailSearch = async (token, q, max=50) => {
   const r = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${max}`, { headers:{Authorization:`Bearer ${token}`} });
@@ -373,12 +376,11 @@ function Onboarding({user, token, onDone, showToast}){
       if(token && CONFIG.SHEET_ID !== "TU_SHEET_ID_AQUI") {
         // Guardar nombre y estado configurado PRIMERO
         await sheetsUpdate(token,'Config!A1:B3',[['nombre',name],['configurado','true'],['email',user?.email||'']]);
-        // Guardar cuentas
+        // Guardar cuentas — limpiar primero para evitar duplicados
         const acctRows = accounts.filter(a=>a.bank).map(a=>[a.bank,a.type,a.number,a.balance||0,'','']);
         if(acctRows.length) {
-          // Limpiar y reescribir hoja Cuentas
-          await sheetsUpdate(token,'Cuentas!A1:F1',[['Banco','Tipo','Numero','Saldo','gA','gB']]);
-          await sheetsAppend(token,'Cuentas!A:F',acctRows);
+          await sheetsClear(token,'Cuentas!A:F');
+          await sheetsAppend(token,'Cuentas!A:F',[['Banco','Tipo','Numero','Saldo','gA','gB'],...acctRows]);
         }
         // Guardar remitentes confirmados
         if(selected.size>0) {
@@ -1056,7 +1058,11 @@ function App(){
       }
       const BANK_COLORS={BancoEstado:{gA:"#FF8C00",gB:"#E55200"},Santander:{gA:"#E8000E",gB:"#8B0009"},BCI:{gA:"#0071BC",gB:"#003E80"},Scotiabank:{gA:"#9B1B30",gB:"#4A0C17"},"Banco de Chile":{gA:"#003087",gB:"#001A4D"},Falabella:{gA:"#6D1FC4",gB:"#4A148C"}};
       if(acctRes.status==='fulfilled'&&acctRes.value.values?.length>1){
-        const loaded=acctRes.value.values.slice(1).map((row,i)=>({id:i+1,bank:row[0]||'',type:row[1]||'',number:row[2]||'',balance:parseInt(row[3])||0,...(BANK_COLORS[row[0]]||{gA:"#888",gB:"#555"})}));
+        const raw=acctRes.value.values.slice(1).filter(row=>row[0]&&row[0]!=='Banco');
+        // Deduplicar por banco+número para evitar duplicados en el Sheet
+        const seen=new Set();
+        const loaded=raw.filter(row=>{const key=`${row[0]}_${row[2]}`;if(seen.has(key))return false;seen.add(key);return true;})
+          .map((row,i)=>({id:i+1,bank:row[0]||'',type:row[1]||'',number:row[2]||'',balance:parseInt(row[3])||0,...(BANK_COLORS[row[0]]||{gA:"#888",gB:"#555"})}));
         if(loaded.length>0){setAccounts(loaded);}
       }
       if(sendRes.status==='fulfilled'&&sendRes.value.values?.length>0){
@@ -1110,11 +1116,13 @@ function App(){
   const handleDeleteAccount = async (idx) => {
     const updated = accounts.filter((_,i)=>i!==idx);
     setAccounts(updated);
-    // Reescribir hoja Cuentas en Sheets
+    // Reescribir hoja Cuentas en Sheets — limpiar primero
     if(token && CONFIG.SHEET_ID !== "TU_SHEET_ID_AQUI") {
       try {
-        const rows = [['Banco','Tipo','Numero','Saldo','gA','gB'], ...updated.map(a=>[a.bank,a.type,a.number,a.balance||0,'',''])];
-        await sheetsUpdate(token,'Cuentas!A1:F'+(rows.length), rows);
+        await sheetsClear(token,'Cuentas!A:F');
+        if(updated.length > 0) {
+          await sheetsAppend(token,'Cuentas!A:F',[['Banco','Tipo','Numero','Saldo','gA','gB'],...updated.map(a=>[a.bank,a.type,a.number,a.balance||0,'',''])]);
+        }
       } catch(e) { console.log('Error actualizando Sheet:', e); }
     }
   };
