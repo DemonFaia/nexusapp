@@ -314,18 +314,17 @@ function CopyBtn({text,label,cKey,onCopy}){
 }
 
 /* ── CONTACT DETAIL ── */
-// URL schemes para abrir directamente la app del banco si está instalada.
-// Si la app no responde en ~500ms, se cae al fallback (App Store o web).
-const BANK_APPS = {
-  "BancoEstado":   {scheme:"bestadomovil://",  fallback:"https://www.bancoestado.cl/imagenes/personas/bemovil/"},
-  "Santander":     {scheme:"santandercl://",    fallback:"https://banco.santander.cl/personas/canales/banco-movil"},
-  "BCI":           {scheme:"bcimovil://",       fallback:"https://www.bci.cl/personas/canales-bci/bci-movil"},
-  "Scotiabank":    {scheme:"scotiabankcl://",   fallback:"https://www.scotiabankchile.cl/personas/canales/scotia-en-linea"},
-  "Banco de Chile":{scheme:"bcocl://",          fallback:"https://portales.bancochile.cl/personas/banca-en-linea/mi-banco-movil"},
-  "Itaú":          {scheme:"itaucl://",         fallback:"https://banco.itau.cl/wps/portal/cl/personas/canales/itau-movil/"},
-  "BICE":          {scheme:"bicemovil://",      fallback:"https://www.bice.cl/personas/canales-de-atencion/bice-movil"},
-  "Falabella":     {scheme:"bancofalabella://", fallback:"https://www.bancofalabella.cl/canales-digitales/banca-en-linea"},
-  "Banco Ripley":  {scheme:"bancoripleycl://",  fallback:"https://www.bancoripley.cl/personas/banca-movil"},
+// URLs web de los bancos chilenos (puntos de login para banca en línea)
+const BANK_WEBS = {
+  "BancoEstado":   "https://www.bancoestado.cl/personas",
+  "Santander":     "https://banco.santander.cl/personas",
+  "BCI":           "https://www.bci.cl/personas",
+  "Scotiabank":    "https://www.scotiabankchile.cl/personas",
+  "Banco de Chile":"https://portales.bancochile.cl/personas",
+  "Itaú":          "https://banco.itau.cl/wps/portal/cl/personas",
+  "BICE":          "https://www.bice.cl/personas",
+  "Falabella":     "https://www.bancofalabella.cl",
+  "Banco Ripley":  "https://www.bancoripley.cl/personas",
 };
 
 function ContactDetail({contact:c,onBack,onCopy,cKey,onShare,onEdit,onDelete}){
@@ -336,31 +335,26 @@ function ContactDetail({contact:c,onBack,onCopy,cKey,onShare,onEdit,onDelete}){
   const color = gc(idx);
   const fields=[{label:"RUT",value:c.rut},{label:"Banco",value:c.bank},{label:"Tipo",value:c.aType},{label:"N° Cuenta",value:c.aNum},{label:"Email",value:c.email}];
 
-  const openBankApp = (bankName) => {
-    // 1) Copiar todos los datos al portapapeles para que el usuario los pegue en la app del banco
-    const text = `RUT: ${c.rut}\nBanco: ${c.bank}\nTipo: ${c.aType}\nN° Cuenta: ${c.aNum}\nEmail: ${c.email}`;
-    navigator.clipboard.writeText(text).catch(()=>{});
+  const buildTransferText = () => `Datos de transferencia
+Nombre: ${c.name}
+RUT: ${c.rut}
+Banco: ${c.bank}
+Tipo: ${c.aType}
+N° Cuenta: ${c.aNum}
+Email: ${c.email}`;
 
-    const cfg = BANK_APPS[bankName];
-    if(!cfg) { setShowBankPicker(false); return; }
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(buildTransferText()).catch(()=>{});
+    onCopy(buildTransferText(), 'all-data');
+  };
 
-    // 2) Intentar abrir la app via URL scheme.
-    //    Si la app no está instalada, el navegador no hace nada y nos quedamos.
-    //    Si SÍ está instalada, el navegador la abre.
-    //    Importante: NO redirigimos automáticamente al App Store para evitar el error de región.
-    const start = Date.now();
-    const t = setTimeout(()=>{
-      // Si pasaron más de 1.5s y la página sigue visible, asumimos que la app no se abrió.
-      // Mostramos un toast con la opción de visitar la web del banco.
-      if(document.visibilityState === 'visible' && Date.now() - start >= 1400) {
-        // Solo abrir fallback web si el usuario lo desea explícitamente
-        // Por ahora no hacemos nada — los datos ya están en el portapapeles
-      }
-    }, 1500);
-
-    // Disparar el deep link
-    window.location.href = cfg.scheme;
-
+  const openBankWeb = (bankName) => {
+    // Copiar primero los datos
+    navigator.clipboard.writeText(buildTransferText()).catch(()=>{});
+    onCopy(buildTransferText(), 'all-data');
+    // Luego abrir la web del banco en nueva pestaña
+    const url = BANK_WEBS[bankName];
+    if(url) window.open(url, '_blank');
     setShowBankPicker(false);
   };
 
@@ -396,26 +390,35 @@ function ContactDetail({contact:c,onBack,onCopy,cKey,onShare,onEdit,onDelete}){
         ))}
       </div>
 
-      {/* Transfer to bank app button */}
-      <button onClick={()=>setShowBankPicker(true)} style={{margin:"0 20px 10px",width:"calc(100% - 40px)",padding:"15px",borderRadius:14,background:"var(--accent,#5452F6)",border:"none",color:"#fff",fontSize:15,fontFamily:"'Inter',sans-serif",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 8px 20px rgba(84,82,246,0.3)"}}>
-        💸 Transferir desde mi banco
-      </button>
+      {/* Action buttons */}
+      <div style={{padding:"0 20px",display:"flex",flexDirection:"column",gap:10}}>
+        {/* 1) Copy to clipboard */}
+        <button onClick={copyToClipboard} style={{width:"100%",padding:"14px",borderRadius:14,background:"var(--accent,#5452F6)",border:"none",color:"#fff",fontSize:15,fontFamily:"'Inter',sans-serif",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 6px 16px rgba(84,82,246,0.28)"}}>
+          <ICopy s={16}/>Copiar datos al portapapeles
+        </button>
 
-      <button onClick={()=>onShare(c)} style={{margin:"0 20px",width:"calc(100% - 40px)",padding:"13px",borderRadius:14,background:"var(--surf,#fff)",border:"1.5px solid rgba(128,128,128,0.15)",color:"var(--t1,#1A1D1F)",fontSize:14,fontFamily:"'Inter',sans-serif",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-        <IShare/>Compartir datos
-      </button>
+        {/* 2) Open bank web — opens picker */}
+        <button onClick={()=>setShowBankPicker(true)} style={{width:"100%",padding:"14px",borderRadius:14,background:"var(--surf,#fff)",border:"1.5px solid var(--accent,#5452F6)",color:"var(--accent,#5452F6)",fontSize:15,fontFamily:"'Inter',sans-serif",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          🌐 Copiar y abrir web del banco
+        </button>
+
+        {/* 3) Share */}
+        <button onClick={()=>onShare(c)} style={{width:"100%",padding:"13px",borderRadius:14,background:"var(--surf,#fff)",border:"1.5px solid rgba(128,128,128,0.15)",color:"var(--t1,#1A1D1F)",fontSize:14,fontFamily:"'Inter',sans-serif",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          <IShare/>Compartir datos
+        </button>
+      </div>
 
       {/* Bank picker modal */}
       {showBankPicker&&(
         <div onClick={()=>setShowBankPicker(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:60,padding:"0"}}>
           <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"24px 0 calc(96px + env(safe-area-inset-bottom))",maxHeight:"75vh",overflowY:"auto"}}>
             <div style={{padding:"0 24px 16px"}}>
-              <div style={{fontSize:18,fontWeight:800,marginBottom:6}}>Transferir desde</div>
-              <div style={{fontSize:13,color:"var(--t2,#6F767E)"}}>Los datos se copian automáticamente. Selecciona el banco para abrir su app.</div>
+              <div style={{fontSize:18,fontWeight:800,marginBottom:6}}>Abrir web del banco</div>
+              <div style={{fontSize:13,color:"var(--t2,#6F767E)"}}>Copiaremos los datos y te llevaremos al sitio del banco.</div>
             </div>
             <div>
-              {Object.keys(BANK_APPS).map((bank,i)=>(
-                <div key={bank} onClick={()=>openBankApp(bank)} style={{display:"flex",alignItems:"center",gap:14,padding:"14px 24px",cursor:"pointer",borderTop:i===0?"1px solid rgba(128,128,128,0.08)":"none",borderBottom:"1px solid rgba(128,128,128,0.08)"}}>
+              {Object.keys(BANK_WEBS).map((bank,i)=>(
+                <div key={bank} onClick={()=>openBankWeb(bank)} style={{display:"flex",alignItems:"center",gap:14,padding:"14px 24px",cursor:"pointer",borderTop:i===0?"1px solid rgba(128,128,128,0.08)":"none",borderBottom:"1px solid rgba(128,128,128,0.08)"}}>
                   <div style={{width:40,height:40,borderRadius:11,background:"linear-gradient(135deg,#1D1B8A,#5452F6)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                     <BankLogo bank={bank} size={20}/>
                   </div>
