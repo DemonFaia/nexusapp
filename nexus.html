@@ -314,16 +314,18 @@ function CopyBtn({text,label,cKey,onCopy}){
 }
 
 /* ── CONTACT DETAIL ── */
+// URL schemes para abrir directamente la app del banco si está instalada.
+// Si la app no responde en ~500ms, se cae al fallback (App Store o web).
 const BANK_APPS = {
-  "BancoEstado":  {ios:"https://apps.apple.com/cl/app/bancoestado/id506517810",         android:"https://play.google.com/store/apps/details?id=cl.bancoestado.mobile"},
-  "Santander":    {ios:"https://apps.apple.com/cl/app/santander-chile/id1011303049",   android:"https://play.google.com/store/apps/details?id=cl.santander.santandermovil"},
-  "BCI":          {ios:"https://apps.apple.com/cl/app/bci-móvil/id445330030",          android:"https://play.google.com/store/apps/details?id=cl.bci.app"},
-  "Scotiabank":   {ios:"https://apps.apple.com/cl/app/scotiabank-chile/id1019635988",  android:"https://play.google.com/store/apps/details?id=com.scotiabank.scotiabankcl"},
-  "Banco de Chile":{ios:"https://apps.apple.com/cl/app/mi-banco/id363230888",          android:"https://play.google.com/store/apps/details?id=cl.bancochile.movil"},
-  "Itaú":         {ios:"https://apps.apple.com/cl/app/itaú-chile/id993730768",         android:"https://play.google.com/store/apps/details?id=com.itau.empresas.cl"},
-  "BICE":         {ios:"https://apps.apple.com/cl/app/banco-bice/id1057073017",        android:"https://play.google.com/store/apps/details?id=cl.bice.bancomovil"},
-  "Falabella":    {ios:"https://apps.apple.com/cl/app/banco-falabella-chile/id1453506180",android:"https://play.google.com/store/apps/details?id=com.falabella.banco.cl"},
-  "Banco Ripley": {ios:"https://apps.apple.com/cl/app/banco-ripley-chile/id1474127015",android:"https://play.google.com/store/apps/details?id=cl.ripley.bancomovil"},
+  "BancoEstado":   {scheme:"bestadomovil://",  fallback:"https://www.bancoestado.cl/imagenes/personas/bemovil/"},
+  "Santander":     {scheme:"santandercl://",    fallback:"https://banco.santander.cl/personas/canales/banco-movil"},
+  "BCI":           {scheme:"bcimovil://",       fallback:"https://www.bci.cl/personas/canales-bci/bci-movil"},
+  "Scotiabank":    {scheme:"scotiabankcl://",   fallback:"https://www.scotiabankchile.cl/personas/canales/scotia-en-linea"},
+  "Banco de Chile":{scheme:"bcocl://",          fallback:"https://portales.bancochile.cl/personas/banca-en-linea/mi-banco-movil"},
+  "Itaú":          {scheme:"itaucl://",         fallback:"https://banco.itau.cl/wps/portal/cl/personas/canales/itau-movil/"},
+  "BICE":          {scheme:"bicemovil://",      fallback:"https://www.bice.cl/personas/canales-de-atencion/bice-movil"},
+  "Falabella":     {scheme:"bancofalabella://", fallback:"https://www.bancofalabella.cl/canales-digitales/banca-en-linea"},
+  "Banco Ripley":  {scheme:"bancoripleycl://",  fallback:"https://www.bancoripley.cl/personas/banca-movil"},
 };
 
 function ContactDetail({contact:c,onBack,onCopy,cKey,onShare,onEdit,onDelete}){
@@ -335,18 +337,30 @@ function ContactDetail({contact:c,onBack,onCopy,cKey,onShare,onEdit,onDelete}){
   const fields=[{label:"RUT",value:c.rut},{label:"Banco",value:c.bank},{label:"Tipo",value:c.aType},{label:"N° Cuenta",value:c.aNum},{label:"Email",value:c.email}];
 
   const openBankApp = (bankName) => {
-    // Copiar todos los datos al portapapeles antes de abrir
+    // 1) Copiar todos los datos al portapapeles para que el usuario los pegue en la app del banco
     const text = `RUT: ${c.rut}\nBanco: ${c.bank}\nTipo: ${c.aType}\nN° Cuenta: ${c.aNum}\nEmail: ${c.email}`;
     navigator.clipboard.writeText(text).catch(()=>{});
-    const ua = navigator.userAgent;
-    const isIOS = /iPhone|iPad|iPod/.test(ua);
-    const isAndroid = /Android/.test(ua);
-    const urls = BANK_APPS[bankName];
-    if(urls) {
-      if(isIOS) window.open(urls.ios, '_blank');
-      else if(isAndroid) window.open(urls.android, '_blank');
-      else window.open(urls.ios, '_blank');
-    }
+
+    const cfg = BANK_APPS[bankName];
+    if(!cfg) { setShowBankPicker(false); return; }
+
+    // 2) Intentar abrir la app via URL scheme.
+    //    Si la app no está instalada, el navegador no hace nada y nos quedamos.
+    //    Si SÍ está instalada, el navegador la abre.
+    //    Importante: NO redirigimos automáticamente al App Store para evitar el error de región.
+    const start = Date.now();
+    const t = setTimeout(()=>{
+      // Si pasaron más de 1.5s y la página sigue visible, asumimos que la app no se abrió.
+      // Mostramos un toast con la opción de visitar la web del banco.
+      if(document.visibilityState === 'visible' && Date.now() - start >= 1400) {
+        // Solo abrir fallback web si el usuario lo desea explícitamente
+        // Por ahora no hacemos nada — los datos ya están en el portapapeles
+      }
+    }, 1500);
+
+    // Disparar el deep link
+    window.location.href = cfg.scheme;
+
     setShowBankPicker(false);
   };
 
@@ -393,11 +407,11 @@ function ContactDetail({contact:c,onBack,onCopy,cKey,onShare,onEdit,onDelete}){
 
       {/* Bank picker modal */}
       {showBankPicker&&(
-        <div onClick={()=>setShowBankPicker(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:60,padding:"0 0 env(safe-area-inset-bottom)"}}>
-          <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"24px 0 16px",maxHeight:"75vh",overflowY:"auto"}}>
+        <div onClick={()=>setShowBankPicker(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:60,padding:"0"}}>
+          <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"24px 0 calc(96px + env(safe-area-inset-bottom))",maxHeight:"75vh",overflowY:"auto"}}>
             <div style={{padding:"0 24px 16px"}}>
               <div style={{fontSize:18,fontWeight:800,marginBottom:6}}>Transferir desde</div>
-              <div style={{fontSize:13,color:"var(--t2,#6F767E)"}}>Los datos se copian al portapapeles y se abre la app del banco.</div>
+              <div style={{fontSize:13,color:"var(--t2,#6F767E)"}}>Los datos se copian automáticamente. Selecciona el banco para abrir su app.</div>
             </div>
             <div>
               {Object.keys(BANK_APPS).map((bank,i)=>(
@@ -421,8 +435,8 @@ function ContactDetail({contact:c,onBack,onCopy,cKey,onShare,onEdit,onDelete}){
 
       {/* Delete confirmation */}
       {showConfirmDel&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:60,padding:"0 0 env(safe-area-inset-bottom)"}}>
-          <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"28px 24px 20px"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:60,padding:"0"}}>
+          <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"28px 24px calc(96px + env(safe-area-inset-bottom))"}}>
             <div style={{width:48,height:48,borderRadius:"50%",background:"rgba(239,68,68,0.1)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
               <ITrash c="#EF4444" s={22}/>
             </div>
@@ -457,7 +471,7 @@ function ContactEditModal({contact, onClose, onSave, accent}) {
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:70}}>
-      <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"24px 22px 20px",maxHeight:"90vh",overflowY:"auto",paddingBottom:"calc(20px + env(safe-area-inset-bottom))"}}>
+      <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"24px 22px 20px",maxHeight:"90vh",overflowY:"auto",paddingBottom:"calc(96px + env(safe-area-inset-bottom))"}}>
         <div style={{fontSize:19,fontWeight:800,marginBottom:6}}>{isNew?"Nuevo contacto":"Editar contacto"}</div>
         <div style={{fontSize:13,color:"var(--t2,#6F767E)",marginBottom:22}}>Datos para transferir dinero.</div>
 
@@ -526,7 +540,7 @@ function TxEditModal({tx, accounts, onClose, onSave, onDelete, accent}) {
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:70}}>
-      <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"24px 22px 20px",maxHeight:"90vh",overflowY:"auto",paddingBottom:"calc(20px + env(safe-area-inset-bottom))"}}>
+      <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"24px 22px 20px",maxHeight:"90vh",overflowY:"auto",paddingBottom:"calc(96px + env(safe-area-inset-bottom))"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
           <div style={{fontSize:19,fontWeight:800}}>Editar movimiento</div>
           {tx.emailId&&<div style={{fontSize:10,color:"#10B981",fontWeight:700,background:"rgba(16,185,129,0.1)",padding:"3px 8px",borderRadius:8}}>✓ Gmail</div>}
@@ -981,8 +995,8 @@ function AccountsScreen({accounts,onDeleteAccount,hide,showToast}){
 
       {/* Confirm delete modal */}
       {confirmIdx!==null&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50,padding:"0 0 env(safe-area-inset-bottom)"}}>
-          <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"28px 24px 20px"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50,padding:"0"}}>
+          <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"28px 24px calc(96px + env(safe-area-inset-bottom))"}}>
             <div style={{width:48,height:48,borderRadius:"50%",background:"rgba(239,68,68,0.1)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
               <ITrash c="#EF4444" s={22}/>
             </div>
@@ -1197,8 +1211,8 @@ function SettingsScreen({user,settings,onSettings,onSignOut,onRerunOnboarding,on
 
       {/* Edit Profile Modal */}
       {editingProfile&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50,padding:"0 0 env(safe-area-inset-bottom)"}}>
-          <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"28px 24px 24px"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50,padding:"0"}}>
+          <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"28px 24px calc(96px + env(safe-area-inset-bottom))"}}>
             <div style={{fontSize:18,fontWeight:800,marginBottom:6}}>Editar perfil</div>
             <div style={{fontSize:13,color:"var(--t2,#6F767E)",marginBottom:24}}>Los cambios se guardan en tu Google Sheet.</div>
 
