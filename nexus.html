@@ -72,8 +72,8 @@ const { useState, useMemo, useEffect } = React;
 
 /* ── CONFIG ── */
 const CONFIG = {
-  CLIENT_ID: "714180410774-s7p0d3f1loigsfl7knm9i8rf2p7lt8td.apps.googleusercontent.com",
-  SHEET_ID:  "1QHPEMZMAHKin7K60uJFS8sMzUNmOZwS-R7YzHwABw9g",
+  CLIENT_ID: "TU_CLIENT_ID_AQUI.apps.googleusercontent.com",
+  SHEET_ID:  "TU_SHEET_ID_AQUI",
 };
 
 /* ── GOOGLE AUTH & APIs ── */
@@ -242,6 +242,8 @@ const IMail  =({c})=><svg width={18} height={18} {...sv(c)}><path d="M4 4h16c1.1
 const IBank  =({c})=><svg width={18} height={18} {...sv(c)}><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>;
 const IFilt  =({c})=><svg width={18} height={18} {...sv(c)}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
 const ITrash =({c,s})=><svg width={s||18} height={s||18} {...sv(c)}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>;
+const IEdit  =({c,s})=><svg width={s||18} height={s||18} {...sv(c)}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+const ISave  =({c,s})=><svg width={s||18} height={s||18} {...sv(c)}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
 
 /* ── BANK LOGO ── */
 function BankLogo({bank,size=22}){
@@ -312,35 +314,292 @@ function CopyBtn({text,label,cKey,onCopy}){
 }
 
 /* ── CONTACT DETAIL ── */
-function ContactDetail({contact:c,onBack,onCopy,cKey,onShare}){
+const BANK_APPS = {
+  "BancoEstado":  {ios:"https://apps.apple.com/cl/app/bancoestado/id506517810",         android:"https://play.google.com/store/apps/details?id=cl.bancoestado.mobile"},
+  "Santander":    {ios:"https://apps.apple.com/cl/app/santander-chile/id1011303049",   android:"https://play.google.com/store/apps/details?id=cl.santander.santandermovil"},
+  "BCI":          {ios:"https://apps.apple.com/cl/app/bci-móvil/id445330030",          android:"https://play.google.com/store/apps/details?id=cl.bci.app"},
+  "Scotiabank":   {ios:"https://apps.apple.com/cl/app/scotiabank-chile/id1019635988",  android:"https://play.google.com/store/apps/details?id=com.scotiabank.scotiabankcl"},
+  "Banco de Chile":{ios:"https://apps.apple.com/cl/app/mi-banco/id363230888",          android:"https://play.google.com/store/apps/details?id=cl.bancochile.movil"},
+  "Itaú":         {ios:"https://apps.apple.com/cl/app/itaú-chile/id993730768",         android:"https://play.google.com/store/apps/details?id=com.itau.empresas.cl"},
+  "BICE":         {ios:"https://apps.apple.com/cl/app/banco-bice/id1057073017",        android:"https://play.google.com/store/apps/details?id=cl.bice.bancomovil"},
+  "Falabella":    {ios:"https://apps.apple.com/cl/app/banco-falabella-chile/id1453506180",android:"https://play.google.com/store/apps/details?id=com.falabella.banco.cl"},
+  "Banco Ripley": {ios:"https://apps.apple.com/cl/app/banco-ripley-chile/id1474127015",android:"https://play.google.com/store/apps/details?id=cl.ripley.bancomovil"},
+};
+
+function ContactDetail({contact:c,onBack,onCopy,cKey,onShare,onEdit,onDelete}){
+  const [showBankPicker, setShowBankPicker] = useState(false);
+  const [showConfirmDel, setShowConfirmDel] = useState(false);
   if(!c)return null;
-  const color=gc(DEMO_CONTACTS.indexOf(c));
+  const idx = Math.abs((c.name||'').split('').reduce((a,ch)=>a+ch.charCodeAt(0),0));
+  const color = gc(idx);
   const fields=[{label:"RUT",value:c.rut},{label:"Banco",value:c.bank},{label:"Tipo",value:c.aType},{label:"N° Cuenta",value:c.aNum},{label:"Email",value:c.email}];
+
+  const openBankApp = (bankName) => {
+    // Copiar todos los datos al portapapeles antes de abrir
+    const text = `RUT: ${c.rut}\nBanco: ${c.bank}\nTipo: ${c.aType}\nN° Cuenta: ${c.aNum}\nEmail: ${c.email}`;
+    navigator.clipboard.writeText(text).catch(()=>{});
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/.test(ua);
+    const isAndroid = /Android/.test(ua);
+    const urls = BANK_APPS[bankName];
+    if(urls) {
+      if(isIOS) window.open(urls.ios, '_blank');
+      else if(isAndroid) window.open(urls.android, '_blank');
+      else window.open(urls.ios, '_blank');
+    }
+    setShowBankPicker(false);
+  };
+
   return(
     <div style={{paddingBottom:"calc(40px + env(safe-area-inset-bottom))"}}>
-      <div style={{padding:"calc(env(safe-area-inset-top)+14px) 20px 20px",display:"flex",gap:14,alignItems:"center"}}>
+      {/* Header with actions */}
+      <div style={{padding:"calc(env(safe-area-inset-top)+14px) 20px 20px",display:"flex",gap:10,alignItems:"center"}}>
         <button onClick={onBack} style={{width:40,height:40,borderRadius:13,background:"var(--surf,#fff)",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}><IBack/></button>
-        <span style={{fontSize:17,fontWeight:700}}>Datos de transferencia</span>
+        <span style={{flex:1,fontSize:17,fontWeight:700}}>Datos de transferencia</span>
+        <button onClick={onEdit} title="Editar" style={{width:40,height:40,borderRadius:13,background:"var(--surf,#fff)",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+          <IEdit c="var(--accent,#5452F6)" s={16}/>
+        </button>
+        <button onClick={()=>setShowConfirmDel(true)} title="Eliminar" style={{width:40,height:40,borderRadius:13,background:"var(--surf,#fff)",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+          <ITrash c="#EF4444" s={16}/>
+        </button>
       </div>
+
       <div style={{textAlign:"center",padding:"4px 20px 22px"}}>
         <div style={{width:66,height:66,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:700,color:"#fff",margin:"0 auto 10px"}}>{ini(c.name)}</div>
         <div style={{fontSize:18,fontWeight:700}}>{c.name}</div>
         <div style={{fontSize:13,color:"var(--t2,#6F767E)",marginTop:3}}>{c.bank} · {c.aType}</div>
       </div>
+
       <div className="cardL" style={{margin:"0 20px 14px",overflow:"hidden"}}>
         {fields.map((f,i)=>(
           <div key={f.label} style={{display:"flex",alignItems:"center",padding:"13px 16px",borderBottom:i<fields.length-1?"1px solid rgba(128,128,128,0.1)":"none"}}>
-            <div style={{flex:1}}>
+            <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:10,color:"var(--t3,#C4C9D4)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:2,fontWeight:600}}>{f.label}</div>
-              <div style={{fontSize:14,fontWeight:500}}>{f.value}</div>
+              <div style={{fontSize:14,fontWeight:500,wordBreak:"break-all"}}>{f.value||'—'}</div>
             </div>
-            <CopyBtn text={f.value} label={f.label} cKey={cKey} onCopy={onCopy}/>
+            {f.value && <CopyBtn text={f.value} label={f.label} cKey={cKey} onCopy={onCopy}/>}
           </div>
         ))}
       </div>
-      <button onClick={()=>onShare(c)} style={{margin:"0 20px",width:"calc(100% - 40px)",padding:"14px",borderRadius:14,background:"var(--accent,#5452F6)",border:"none",color:"#fff",fontSize:15,fontFamily:"'Inter',sans-serif",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-        <IShare/>Compartir datos completos
+
+      {/* Transfer to bank app button */}
+      <button onClick={()=>setShowBankPicker(true)} style={{margin:"0 20px 10px",width:"calc(100% - 40px)",padding:"15px",borderRadius:14,background:"var(--accent,#5452F6)",border:"none",color:"#fff",fontSize:15,fontFamily:"'Inter',sans-serif",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 8px 20px rgba(84,82,246,0.3)"}}>
+        💸 Transferir desde mi banco
       </button>
+
+      <button onClick={()=>onShare(c)} style={{margin:"0 20px",width:"calc(100% - 40px)",padding:"13px",borderRadius:14,background:"var(--surf,#fff)",border:"1.5px solid rgba(128,128,128,0.15)",color:"var(--t1,#1A1D1F)",fontSize:14,fontFamily:"'Inter',sans-serif",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+        <IShare/>Compartir datos
+      </button>
+
+      {/* Bank picker modal */}
+      {showBankPicker&&(
+        <div onClick={()=>setShowBankPicker(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:60,padding:"0 0 env(safe-area-inset-bottom)"}}>
+          <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"24px 0 16px",maxHeight:"75vh",overflowY:"auto"}}>
+            <div style={{padding:"0 24px 16px"}}>
+              <div style={{fontSize:18,fontWeight:800,marginBottom:6}}>Transferir desde</div>
+              <div style={{fontSize:13,color:"var(--t2,#6F767E)"}}>Los datos se copian al portapapeles y se abre la app del banco.</div>
+            </div>
+            <div>
+              {Object.keys(BANK_APPS).map((bank,i)=>(
+                <div key={bank} onClick={()=>openBankApp(bank)} style={{display:"flex",alignItems:"center",gap:14,padding:"14px 24px",cursor:"pointer",borderTop:i===0?"1px solid rgba(128,128,128,0.08)":"none",borderBottom:"1px solid rgba(128,128,128,0.08)"}}>
+                  <div style={{width:40,height:40,borderRadius:11,background:"linear-gradient(135deg,#1D1B8A,#5452F6)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <BankLogo bank={bank} size={20}/>
+                  </div>
+                  <div style={{flex:1,fontSize:15,fontWeight:600}}>{bank}</div>
+                  <IChev/>
+                </div>
+              ))}
+            </div>
+            <div style={{padding:"16px 24px 0"}}>
+              <button onClick={()=>setShowBankPicker(false)} style={{width:"100%",padding:"14px",borderRadius:14,background:"var(--bg,#F0F2FA)",border:"none",fontSize:14,fontWeight:600,fontFamily:"'Inter',sans-serif",cursor:"pointer",color:"var(--t2,#6F767E)"}}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {showConfirmDel&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:60,padding:"0 0 env(safe-area-inset-bottom)"}}>
+          <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"28px 24px 20px"}}>
+            <div style={{width:48,height:48,borderRadius:"50%",background:"rgba(239,68,68,0.1)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+              <ITrash c="#EF4444" s={22}/>
+            </div>
+            <div style={{fontSize:18,fontWeight:800,textAlign:"center",marginBottom:8}}>Eliminar contacto</div>
+            <div style={{fontSize:14,color:"var(--t2,#6F767E)",textAlign:"center",marginBottom:24,lineHeight:1.6}}>
+              ¿Eliminar a <strong>{c.name}</strong>?
+            </div>
+            <div style={{display:"flex",gap:12}}>
+              <button onClick={()=>setShowConfirmDel(false)} style={{flex:1,padding:"14px",borderRadius:14,background:"var(--bg,#F0F2FA)",border:"none",fontSize:15,fontWeight:600,fontFamily:"'Inter',sans-serif",cursor:"pointer",color:"var(--t2,#6F767E)"}}>
+                Cancelar
+              </button>
+              <button onClick={()=>{setShowConfirmDel(false);onDelete();}} style={{flex:1,padding:"14px",borderRadius:14,background:"#EF4444",border:"none",color:"white",fontSize:15,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer"}}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── CONTACT EDIT MODAL ── */
+function ContactEditModal({contact, onClose, onSave, accent}) {
+  const [data, setData] = useState({...contact});
+  const upd = (k,v) => setData(d=>({...d,[k]:v}));
+  const isNew = contact.isNew;
+  const bankOpts = ["BancoEstado","Santander","BCI","Scotiabank","Banco de Chile","Itaú","BICE","Banco Ripley","Falabella","Otro"];
+  const typeOpts = ["Cta. Corriente","Cuenta RUT","Cuenta Vista","Cuenta de Ahorro"];
+
+  const canSave = data.name && data.bank && data.aNum;
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:70}}>
+      <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"24px 22px 20px",maxHeight:"90vh",overflowY:"auto",paddingBottom:"calc(20px + env(safe-area-inset-bottom))"}}>
+        <div style={{fontSize:19,fontWeight:800,marginBottom:6}}>{isNew?"Nuevo contacto":"Editar contacto"}</div>
+        <div style={{fontSize:13,color:"var(--t2,#6F767E)",marginBottom:22}}>Datos para transferir dinero.</div>
+
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Nombre *</div>
+          <input className="inp" value={data.name||''} onChange={e=>upd('name',e.target.value)} placeholder="Nombre completo"/>
+        </div>
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>RUT</div>
+          <input className="inp" value={data.rut||''} onChange={e=>upd('rut',e.target.value)} placeholder="12.345.678-9"/>
+        </div>
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Banco *</div>
+          <select value={data.bank||''} onChange={e=>upd('bank',e.target.value)} style={{width:"100%",padding:"12px 14px",borderRadius:14,border:"1.5px solid rgba(128,128,128,0.2)",background:"var(--surf,#fff)",color:"var(--t1,#1A1D1F)",fontSize:15,fontFamily:"'Inter',sans-serif",outline:"none",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            <option value="">Seleccionar banco</option>
+            {bankOpts.map(b=><option key={b} value={b}>{b}</option>)}
+          </select>
+        </div>
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Tipo de cuenta</div>
+          <select value={data.aType||'Cta. Corriente'} onChange={e=>upd('aType',e.target.value)} style={{width:"100%",padding:"12px 14px",borderRadius:14,border:"1.5px solid rgba(128,128,128,0.2)",background:"var(--surf,#fff)",color:"var(--t1,#1A1D1F)",fontSize:15,fontFamily:"'Inter',sans-serif",outline:"none",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            {typeOpts.map(t=><option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>N° de cuenta *</div>
+          <input className="inp" value={data.aNum||''} onChange={e=>upd('aNum',e.target.value)} placeholder="Número de cuenta"/>
+        </div>
+        <div style={{marginBottom:24}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Email</div>
+          <input className="inp" value={data.email||''} onChange={e=>upd('email',e.target.value)} placeholder="contacto@email.com" type="email"/>
+        </div>
+
+        <div style={{display:"flex",gap:12}}>
+          <button onClick={onClose} style={{flex:1,padding:"14px",borderRadius:14,background:"var(--bg,#F0F2FA)",border:"none",fontSize:15,fontWeight:600,fontFamily:"'Inter',sans-serif",cursor:"pointer",color:"var(--t2,#6F767E)"}}>
+            Cancelar
+          </button>
+          <button disabled={!canSave} onClick={()=>onSave({...data,id:data.id||Date.now()})} style={{flex:1,padding:"14px",borderRadius:14,background:canSave?accent:"#ccc",border:"none",color:"white",fontSize:15,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:canSave?"pointer":"default",opacity:canSave?1:.6}}>
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── TX EDIT MODAL ── */
+function TxEditModal({tx, accounts, onClose, onSave, onDelete, accent}) {
+  const [data, setData] = useState({...tx, m: tx.m||tx.merchant||'', amt: Math.abs(tx.amt||0)});
+  const upd = (k,v) => setData(d=>({...d,[k]:v}));
+  const catOpts = ["Alimentación","Transporte","Compras","Suscripciones","Salud","Transferencia","Pagos","Abono","Movimiento"];
+  const eOpts = {"Alimentación":"🛒","Transporte":"⛽","Compras":"🛍️","Suscripciones":"📺","Salud":"💊","Transferencia":"💸","Pagos":"💳","Abono":"💰","Movimiento":"📧"};
+  const [showConfirmDel, setShowConfirmDel] = useState(false);
+
+  const handleSave = () => {
+    const sign = data.type==='gasto' || data.type===undefined ? -1 : 1;
+    const updated = {
+      ...data,
+      m: data.m,
+      amt: sign * Math.abs(parseInt(data.amt)||0),
+      cc: CAT_COLORS[data.cat] || "#9CA3AF",
+      e: eOpts[data.cat] || "📧",
+    };
+    onSave(updated);
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:70}}>
+      <div style={{width:"100%",maxWidth:430,background:"var(--surf,#fff)",borderRadius:"24px 24px 0 0",padding:"24px 22px 20px",maxHeight:"90vh",overflowY:"auto",paddingBottom:"calc(20px + env(safe-area-inset-bottom))"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+          <div style={{fontSize:19,fontWeight:800}}>Editar movimiento</div>
+          {tx.emailId&&<div style={{fontSize:10,color:"#10B981",fontWeight:700,background:"rgba(16,185,129,0.1)",padding:"3px 8px",borderRadius:8}}>✓ Gmail</div>}
+        </div>
+        <div style={{fontSize:13,color:"var(--t2,#6F767E)",marginBottom:22}}>Corrige errores de lectura del email.</div>
+
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Descripción</div>
+          <input className="inp" value={data.m||''} onChange={e=>upd('m',e.target.value)} placeholder="Ej: Supermercado Líder"/>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Tipo</div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>upd('type','gasto')} style={{flex:1,padding:"12px",borderRadius:12,border:`2px solid ${(data.type==='gasto'||data.type===undefined)?'#EF4444':'rgba(128,128,128,0.2)'}`,background:(data.type==='gasto'||data.type===undefined)?'rgba(239,68,68,0.08)':'transparent',color:(data.type==='gasto'||data.type===undefined)?'#EF4444':'var(--t2,#6F767E)',fontSize:13,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer"}}>
+              Gasto
+            </button>
+            <button onClick={()=>upd('type','ingreso')} style={{flex:1,padding:"12px",borderRadius:12,border:`2px solid ${data.type==='ingreso'?'#10B981':'rgba(128,128,128,0.2)'}`,background:data.type==='ingreso'?'rgba(16,185,129,0.08)':'transparent',color:data.type==='ingreso'?'#10B981':'var(--t2,#6F767E)',fontSize:13,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer"}}>
+              Ingreso
+            </button>
+          </div>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Monto</div>
+          <input className="inp" type="number" value={data.amt} onChange={e=>upd('amt',e.target.value)} placeholder="0"/>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Categoría</div>
+          <select value={data.cat||'Movimiento'} onChange={e=>upd('cat',e.target.value)} style={{width:"100%",padding:"12px 14px",borderRadius:14,border:"1.5px solid rgba(128,128,128,0.2)",background:"var(--surf,#fff)",color:"var(--t1,#1A1D1F)",fontSize:15,fontFamily:"'Inter',sans-serif",outline:"none",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            {catOpts.map(c=><option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Banco / Cuenta</div>
+          <select value={data.bank||''} onChange={e=>upd('bank',e.target.value)} style={{width:"100%",padding:"12px 14px",borderRadius:14,border:"1.5px solid rgba(128,128,128,0.2)",background:"var(--surf,#fff)",color:"var(--t1,#1A1D1F)",fontSize:15,fontFamily:"'Inter',sans-serif",outline:"none",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            <option value="">Sin cuenta</option>
+            {accounts.map(a=><option key={a.id} value={a.bank}>{a.bank} · {a.type}</option>)}
+          </select>
+        </div>
+
+        <div style={{marginBottom:22}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Fecha</div>
+          <input className="inp" value={data.date||data.dateLabel||''} onChange={e=>upd('date',e.target.value)} placeholder="Hoy, Ayer, etc."/>
+        </div>
+
+        <div style={{display:"flex",gap:8,marginBottom:8}}>
+          <button onClick={()=>setShowConfirmDel(true)} style={{padding:"14px 16px",borderRadius:14,background:"rgba(239,68,68,0.08)",border:"1.5px solid rgba(239,68,68,0.2)",color:"#EF4444",fontSize:14,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <ITrash c="#EF4444" s={16}/>
+          </button>
+          <button onClick={onClose} style={{flex:1,padding:"14px",borderRadius:14,background:"var(--bg,#F0F2FA)",border:"none",fontSize:15,fontWeight:600,fontFamily:"'Inter',sans-serif",cursor:"pointer",color:"var(--t2,#6F767E)"}}>
+            Cancelar
+          </button>
+          <button onClick={handleSave} style={{flex:1,padding:"14px",borderRadius:14,background:accent,border:"none",color:"white",fontSize:15,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer"}}>
+            Guardar
+          </button>
+        </div>
+
+        {showConfirmDel&&(
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:80,padding:"0 20px"}}>
+            <div style={{background:"var(--surf,#fff)",borderRadius:20,padding:"24px",maxWidth:340,width:"100%"}}>
+              <div style={{fontSize:17,fontWeight:800,marginBottom:8,textAlign:"center"}}>¿Eliminar movimiento?</div>
+              <div style={{fontSize:13,color:"var(--t2,#6F767E)",textAlign:"center",marginBottom:20}}>Esta acción no se puede deshacer.</div>
+              <div style={{display:"flex",gap:10}}>
+                <button onClick={()=>setShowConfirmDel(false)} style={{flex:1,padding:"12px",borderRadius:12,background:"var(--bg,#F0F2FA)",border:"none",fontSize:14,fontWeight:600,fontFamily:"'Inter',sans-serif",cursor:"pointer",color:"var(--t2,#6F767E)"}}>Cancelar</button>
+                <button onClick={()=>{setShowConfirmDel(false);onDelete();}} style={{flex:1,padding:"12px",borderRadius:12,background:"#EF4444",border:"none",color:"white",fontSize:14,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer"}}>Eliminar</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -526,10 +785,11 @@ function Onboarding({user, token, onDone, showToast}){
 }
 
 /* ── SCREENS ── */
-function HomeScreen({user,txs,accounts,hide,setHide,onRefresh,refreshing,refreshProg,showToast,goTab,accent}){
+function HomeScreen({user,txs,accounts,contacts,onSaveContact,onDeleteContact,hide,setHide,onRefresh,refreshing,refreshProg,showToast,goTab,accent}){
   const [showContacts,setShowContacts] = useState(false);
   const [selContact,setSel] = useState(null);
   const [cKey,setCKey] = useState(null);
+  const [editingContact, setEditingContact] = useState(null);
   const total=accounts.reduce((s,a)=>s+(parseInt(a.balance)||0),0);
   const recent=txs.slice(0,4);
   const handleCopy=(text,key)=>{navigator.clipboard.writeText(text).catch(()=>{});setCKey(key);showToast("¡Copiado!");setTimeout(()=>setCKey(null),2000);};
@@ -620,6 +880,16 @@ function HomeScreen({user,txs,accounts,hide,setHide,onRefresh,refreshing,refresh
       )}
       <div style={{height:16}}/>
 
+      {/* Edit/New Contact Modal */}
+      {editingContact&&(
+        <ContactEditModal
+          contact={editingContact}
+          onClose={()=>setEditingContact(null)}
+          onSave={(c)=>{onSaveContact(c,editingContact.isNew);setEditingContact(null);if(!editingContact.isNew)setSel(c);showToast(editingContact.isNew?'Contacto agregado':'Contacto actualizado');}}
+          accent={accent}
+        />
+      )}
+
       {/* Contacts slide-in */}
       <div className={`slide${showContacts?" open":""}`} style={{paddingBottom:"calc(40px + env(safe-area-inset-bottom))"}}>
         {!selContact?(
@@ -628,18 +898,28 @@ function HomeScreen({user,txs,accounts,hide,setHide,onRefresh,refreshing,refresh
               <button onClick={()=>setShowContacts(false)} style={{width:40,height:40,borderRadius:13,background:"var(--surf,#fff)",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}><IBack/></button>
               <span style={{fontSize:18,fontWeight:700}}>Contactos</span>
             </div>
-            <div className="cardL" style={{margin:"0 20px"}}>
-              {DEMO_CONTACTS.map((c,i)=>(
-                <div key={c.id} onClick={()=>setSel(c)} style={{display:"flex",alignItems:"center",gap:12,padding:"13px 16px",cursor:"pointer",borderBottom:i<DEMO_CONTACTS.length-1?"1px solid rgba(128,128,128,0.08)":"none"}}>
-                  <div style={{width:44,height:44,borderRadius:"50%",background:gc(i),display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:"#fff",flexShrink:0}}>{ini(c.name)}</div>
-                  <div style={{flex:1}}><div style={{fontSize:14,fontWeight:600}}>{c.name}</div><div style={{fontSize:11,color:"var(--t3,#9CA3AF)",marginTop:2}}>{c.bank} · {c.rut}</div></div>
-                  <IChev/>
-                </div>
-              ))}
-            </div>
+            {/* Add contact button */}
+            <button onClick={()=>setEditingContact({isNew:true,name:'',rut:'',bank:'',aType:'Cta. Corriente',aNum:'',email:''})} style={{margin:"0 20px 12px",width:"calc(100% - 40px)",padding:"12px",borderRadius:14,background:`${accent}18`,border:`1.5px dashed ${accent}55`,color:accent,fontSize:13,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+              <IPlus c={accent} s={16}/>Agregar contacto
+            </button>
+            {contacts.length===0?(
+              <div style={{textAlign:"center",padding:"40px 20px",color:"var(--t3,#C4C9D4)",fontSize:14}}>
+                No tienes contactos guardados
+              </div>
+            ):(
+              <div className="cardL" style={{margin:"0 20px"}}>
+                {contacts.map((c,i)=>(
+                  <div key={c.id} onClick={()=>setSel(c)} style={{display:"flex",alignItems:"center",gap:12,padding:"13px 16px",cursor:"pointer",borderBottom:i<contacts.length-1?"1px solid rgba(128,128,128,0.08)":"none"}}>
+                    <div style={{width:44,height:44,borderRadius:"50%",background:gc(i),display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:"#fff",flexShrink:0}}>{ini(c.name)}</div>
+                    <div style={{flex:1}}><div style={{fontSize:14,fontWeight:600}}>{c.name}</div><div style={{fontSize:11,color:"var(--t3,#9CA3AF)",marginTop:2}}>{c.bank} · {c.rut}</div></div>
+                    <IChev/>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         ):(
-          <ContactDetail contact={selContact} onBack={()=>setSel(null)} onCopy={handleCopy} cKey={cKey} onShare={handleShare}/>
+          <ContactDetail contact={selContact} onBack={()=>setSel(null)} onCopy={handleCopy} cKey={cKey} onShare={handleShare} onEdit={()=>setEditingContact({...selContact,isNew:false})} onDelete={()=>{onDeleteContact(selContact);setSel(null);showToast('Contacto eliminado');}}/>
         )}
       </div>
     </div>
@@ -728,9 +1008,10 @@ function AccountsScreen({accounts,onDeleteAccount,hide,showToast}){
   );
 }
 
-function HistorialScreen({txs,accounts,onRefresh,refreshing,refreshProg}){
+function HistorialScreen({txs,accounts,onRefresh,refreshing,refreshProg,onSaveTx,onDeleteTx,accent}){
   const [q,setQ]=useState("");
   const [filter,setFilter]=useState("Todo");
+  const [editingTx,setEditingTx]=useState(null);
   const filters=["Todo","Hoy","Ayer","Email"];
   const filtered=useMemo(()=>txs.filter(tx=>{
     const mQ=!q||((tx.m||tx.merchant)||"").toLowerCase().includes(q.toLowerCase())||(tx.cat||"").toLowerCase().includes(q.toLowerCase());
@@ -770,7 +1051,7 @@ function HistorialScreen({txs,accounts,onRefresh,refreshing,refreshProg}){
               const acc=accounts.find(a=>a.bank===tx.bank||a.id===tx.aId);
               const color=tx.cc||CAT_COLORS[tx.cat]||"#9CA3AF";
               return(
-                <div key={tx.id||tx.emailId} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:i<txs_.length-1?"1px solid rgba(128,128,128,0.08)":"none"}}>
+                <div key={tx.id||tx.emailId} onClick={()=>setEditingTx(tx)} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:i<txs_.length-1?"1px solid rgba(128,128,128,0.08)":"none",cursor:"pointer"}}>
                   <div style={{width:44,height:44,borderRadius:14,background:"var(--bg,#F0F2FA)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{tx.e||"💸"}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:14,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tx.m||tx.merchant}</div>
@@ -793,6 +1074,16 @@ function HistorialScreen({txs,accounts,onRefresh,refreshing,refreshProg}){
         </div>
       ))}
       <div style={{height:16}}/>
+      {editingTx&&(
+        <TxEditModal
+          tx={editingTx}
+          accounts={accounts}
+          onClose={()=>setEditingTx(null)}
+          onSave={(t)=>{onSaveTx(t);setEditingTx(null);}}
+          onDelete={()=>{onDeleteTx(editingTx);setEditingTx(null);}}
+          accent={accent}
+        />
+      )}
     </div>
   );
 }
@@ -1055,6 +1346,7 @@ function App(){
   const [authLoading,setAuthL] = useState(false);
   const [txs,setTxs]           = useState(DEMO_TXS);
   const [accounts,setAccounts] = useState(DEMO_ACCOUNTS);
+  const [contacts,setContacts] = useState(DEMO_CONTACTS);
   const [refreshing,setRef]    = useState(false);
   const [refreshProg,setRefP]  = useState(null);
   const [knownIds,setKnown]    = useState(new Set());
@@ -1090,12 +1382,21 @@ function App(){
 
   const loadSheet = async (t) => {
     try{
-      const [txRes, acctRes, sendRes, cfgRes] = await Promise.allSettled([
+      const [txRes, acctRes, sendRes, cfgRes, contRes] = await Promise.allSettled([
         sheetsGet(t,'Transacciones!A:I'),
         sheetsGet(t,'Cuentas!A:F'),
         sheetsGet(t,'Remitentes!A:A'),
         sheetsGet(t,'Config!A:B'),
+        sheetsGet(t,'Contactos!A:F'),
       ]);
+      // Load contacts
+      if(contRes.status==='fulfilled'&&contRes.value.values?.length>1){
+        const raw=contRes.value.values.slice(1).filter(row=>row[0]&&row[0]!=='Nombre');
+        const seen=new Set();
+        const loaded=raw.filter(row=>{const k=`${row[0]}_${row[1]}`;if(seen.has(k))return false;seen.add(k);return true;})
+          .map((row,i)=>({id:i+1,name:row[0]||'',rut:row[1]||'',bank:row[2]||'',aType:row[3]||'',aNum:row[4]||'',email:row[5]||''}));
+        if(loaded.length>0)setContacts(loaded);
+      }
       if(txRes.status==='fulfilled'&&txRes.value.values?.length>1){
         const loaded=txRes.value.values.slice(1).map((row,i)=>({id:row[0]||String(i),m:row[1]||'',cat:row[2]||'Movimiento',cc:CAT_COLORS[row[2]]||"#9CA3AF",amt:parseInt(row[3])||0,date:row[4]||'',aId:parseInt(row[5])||1,e:row[6]||'💸',emailId:row[7]||'',bank:row[8]||''}));
         setTxs(loaded);
@@ -1183,6 +1484,59 @@ function App(){
     }
   };
 
+  const syncContacts = async (list) => {
+    if(token && CONFIG.SHEET_ID !== "TU_SHEET_ID_AQUI") {
+      try {
+        await sheetsClear(token,'Contactos!A:F');
+        if(list.length > 0) {
+          await sheetsAppend(token,'Contactos!A:F',[['Nombre','RUT','Banco','Tipo','Numero','Email'],...list.map(c=>[c.name,c.rut||'',c.bank,c.aType||'',c.aNum||'',c.email||''])]);
+        }
+      } catch(e) { console.log('Error sync contactos:', e); }
+    }
+  };
+
+  const handleSaveContact = (contact, isNew) => {
+    let updated;
+    if(isNew) {
+      updated = [...contacts, {...contact, id: Date.now()}];
+    } else {
+      updated = contacts.map(c => c.id===contact.id ? {...contact} : c);
+    }
+    setContacts(updated);
+    syncContacts(updated);
+  };
+
+  const handleDeleteContact = (contact) => {
+    const updated = contacts.filter(c => c.id !== contact.id);
+    setContacts(updated);
+    syncContacts(updated);
+  };
+
+  const syncTxs = async (list) => {
+    if(token && CONFIG.SHEET_ID !== "TU_SHEET_ID_AQUI") {
+      try {
+        await sheetsClear(token,'Transacciones!A:I');
+        if(list.length > 0) {
+          await sheetsAppend(token,'Transacciones!A:I',[['ID','Descripcion','Categoria','Monto','Fecha','CuentaID','Emoji','EmailID','Banco'],...list.map(t=>[t.id||'',t.m||t.merchant||'',t.cat||'',t.amt||0,t.date||t.dateLabel||'',t.aId||'',t.e||'',t.emailId||'',t.bank||''])]);
+        }
+      } catch(e) { console.log('Error sync txs:', e); }
+    }
+  };
+
+  const handleSaveTx = (tx) => {
+    const updated = txs.map(t => (t.id===tx.id || (t.emailId&&t.emailId===tx.emailId)) ? {...tx} : t);
+    setTxs(updated);
+    syncTxs(updated);
+    showToast("Movimiento actualizado ✓");
+  };
+
+  const handleDeleteTx = (tx) => {
+    const updated = txs.filter(t => !(t.id===tx.id || (t.emailId&&t.emailId===tx.emailId)));
+    setTxs(updated);
+    syncTxs(updated);
+    showToast("Movimiento eliminado");
+  };
+
   const TABS=[
     {id:"inicio",    label:"Inicio",    I:IHome},
     {id:"cuentas",   label:"Cuentas",   I:ICrd},
@@ -1211,9 +1565,9 @@ function App(){
   return(
     <div className={`nx${settings.dark?" dark":""}${settings.highContrast?" hc":""}`} style={{"--accent":accent,"--fs":fsMap[settings.fontSize]}}>
       {toast&&<div className="toast">{toast}</div>}
-      {tab==="inicio"      &&<HomeScreen user={user} txs={txs} accounts={accounts} hide={hide} setHide={setHide} onRefresh={handleRefresh} refreshing={refreshing} refreshProg={refreshProg} showToast={showToast} goTab={goTab} accent={accent}/>}
+      {tab==="inicio"      &&<HomeScreen user={user} txs={txs} accounts={accounts} contacts={contacts} onSaveContact={handleSaveContact} onDeleteContact={handleDeleteContact} hide={hide} setHide={setHide} onRefresh={handleRefresh} refreshing={refreshing} refreshProg={refreshProg} showToast={showToast} goTab={goTab} accent={accent}/>}
       {tab==="cuentas"     &&<AccountsScreen accounts={accounts} onDeleteAccount={handleDeleteAccount} hide={hide} showToast={showToast}/>}
-      {tab==="historial"   &&<HistorialScreen txs={txs} accounts={accounts} onRefresh={handleRefresh} refreshing={refreshing} refreshProg={refreshProg}/>}
+      {tab==="historial"   &&<HistorialScreen txs={txs} accounts={accounts} onRefresh={handleRefresh} refreshing={refreshing} refreshProg={refreshProg} onSaveTx={handleSaveTx} onDeleteTx={handleDeleteTx} accent={accent}/>}
       {tab==="analiticas"  &&<AnalyticsScreen txs={txs}/>}
       {tab==="ajustes"     &&<SettingsScreen user={user} settings={settings} onSettings={setSettings} onSignOut={handleSignOut} onRerunOnboarding={()=>setOnboarding(true)} onSaveProfile={handleSaveProfile} showToast={showToast}/>}
       <nav className="bnav">
