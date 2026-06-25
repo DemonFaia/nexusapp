@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>PetionalChip</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%BE%3C/text%3E%3C/svg%3E">
+<style>
+  *,*::before,*::after { box-sizing: border-box; }
+  html,body { margin:0; padding:0; height:100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: linear-gradient(135deg,#f0f4f0 0%,#e8f0ec 100%);
+  }
+  #root { min-height: 100%; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  button { font-family: inherit; }
+  textarea, input { font-family: inherit; }
+  @keyframes pulse-dot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.5; transform:scale(1.5); } }
+  @keyframes fade-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes bounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-12px); } }
+  @keyframes pop { 0% { transform:scale(.6); opacity:0; } 100% { transform:scale(1); opacity:1; } }
+  .loader { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; }
+  .loader-emoji { font-size:64px; animation: bounce 1s infinite; }
+  .screen-anim > * { animation: fade-in .35s ease both; }
+  .pop-in { animation: pop .3s ease both; }
+</style>
+<script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+<script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.10/babel.min.js"></script>
+</head>
+<body>
+<div id="root">
+  <div class="loader">
+    <div class="loader-emoji">🐾</div>
+    <div style="margin-top:14px; color:#2E7D32; font-weight:700; font-size:22px; letter-spacing:.5px;">PetionalChip</div>
+    <div style="color:#8E8E93; font-size:13px; margin-top:4px;">Conectando con el collar…</div>
+  </div>
+</div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect } = React;
+const { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } = Recharts;
+
+// ============== ICONS ==============
+const Svg = ({size=24, color="currentColor", strokeWidth=2, fill="none", children}) =>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
+
+const Home = (p) => <Svg {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></Svg>;
+const Heart = (p) => <Svg {...p}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></Svg>;
+const Activity = (p) => <Svg {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></Svg>;
+const Bell = (p) => <Svg {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></Svg>;
+const Settings = (p) => <Svg {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></Svg>;
+const MapPin = (p) => <Svg {...p}><path d="M20 10c0 7-8 13-8 13s-8-6-8-13a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></Svg>;
+const Droplet = (p) => <Svg {...p}><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></Svg>;
+const Moon = (p) => <Svg {...p}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></Svg>;
+const Zap = (p) => <Svg {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>;
+const Footprints = (p) => <Svg {...p}><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></Svg>;
+const Flame = (p) => <Svg {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></Svg>;
+const Thermometer = (p) => <Svg {...p}><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></Svg>;
+const AlertTriangle = (p) => <Svg {...p}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></Svg>;
+const CheckCircle2 = (p) => <Svg {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></Svg>;
+const Phone = (p) => <Svg {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></Svg>;
+const Mail = (p) => <Svg {...p}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></Svg>;
+const User = (p) => <Svg {...p}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></Svg>;
+const Stethoscope = (p) => <Svg {...p}><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></Svg>;
+const Sparkles = (p) => <Svg {...p}><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></Svg>;
+const TrendingUp = (p) => <Svg {...p}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></Svg>;
+const Wind = (p) => <Svg {...p}><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></Svg>;
+const Sun = (p) => <Svg {...p}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></Svg>;
+const Cloud = (p) => <Svg {...p}><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></Svg>;
+const ChevronRight = (p) => <Svg {...p}><polyline points="9 18 15 12 9 6"/></Svg>;
+const ChevronLeft = (p) => <Svg {...p}><polyline points="15 18 9 12 15 6"/></Svg>;
+const Play = (p) => <Svg {...p} fill={p.color || "currentColor"}><polygon points="6 3 20 12 6 21 6 3"/></Svg>;
+const Pause = (p) => <Svg {...p} fill={p.color || "currentColor"} strokeWidth={0}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></Svg>;
+const Wifi = (p) => <Svg {...p}><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></Svg>;
+const BatteryFull = (p) => <Svg {...p}><rect x="2" y="7" width="16" height="10" rx="2" ry="2"/><line x1="22" y1="11" x2="22" y2="13"/><line x1="6" y1="11" x2="6" y2="13"/><line x1="10" y1="11" x2="10" y2="13"/><line x1="14" y1="11" x2="14" y2="13"/></Svg>;
+const Signal = (p) => <Svg {...p}><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></Svg>;
+const Bone = (p) => <Svg {...p}><path d="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5z"/></Svg>;
+const Star = ({filled=false, ...p}) => <Svg {...p} fill={filled ? (p.color || "#FFB300") : "none"}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></Svg>;
+const Send = (p) => <Svg {...p}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></Svg>;
+const MessageSquare = (p) => <Svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></Svg>;
+const ThumbsUp = (p) => <Svg {...p}><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H7V10l4.41-9.47a2 2 0 0 1 3.59.93z"/></Svg>;
+const Lightbulb = (p) => <Svg {...p}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></Svg>;
+
+// ============== DATA ==============
+const EMOTIONS = {
+  feliz:    { label: "Feliz",     emoji: "😊", color: "#4CAF50", bg: "#E8F5E9" },
+  jugueton: { label: "Juguetón",  emoji: "🤩", color: "#FFA726", bg: "#FFF3E0" },
+  relajado: { label: "Relajado",  emoji: "😴", color: "#42A5F5", bg: "#E3F2FD" },
+  ansioso:  { label: "Ansioso",   emoji: "😟", color: "#FFB300", bg: "#FFF8E1" },
+  estresado:{ label: "Estresado", emoji: "😨", color: "#EF5350", bg: "#FFEBEE" },
+  hambriento:{label: "Hambriento",emoji: "🥺", color: "#AB47BC", bg: "#F3E5F5" },
+};
+
+const SCENARIOS = {
+  feliz: {
+    emotion: "feliz", wellness: 92, heartRate: 110, temp: 38.6, activity: 78,
+    needs: [{ icon: CheckCircle2, label: "Todo normal", color: "#4CAF50" }],
+    aiMessage: "Michi se encuentra tranquilo, feliz y bien hidratado. Sus signos vitales son óptimos.",
+    alerts: []
+  },
+  estres: {
+    emotion: "estresado", wellness: 54, heartRate: 168, temp: 39.4, activity: 32,
+    needs: [
+      { icon: Wind, label: "Necesita calma", color: "#EF5350" },
+      { icon: Droplet, label: "Necesita agua", color: "#42A5F5" }
+    ],
+    aiMessage: "Detecto signos elevados de estrés en Michi. Su ritmo cardíaco está sobre lo normal. Considera un ambiente tranquilo.",
+    alerts: [{ severity: "high", title: "Estrés elevado detectado", detail: "Ritmo cardíaco 168 bpm durante 12 min." }]
+  },
+  hambre: {
+    emotion: "hambriento", wellness: 71, heartRate: 118, temp: 38.5, activity: 45,
+    needs: [{ icon: Bone, label: "Tiene hambre", color: "#AB47BC" }],
+    aiMessage: "Han pasado más de 6 horas desde la última comida. Michi muestra patrones típicos de hambre.",
+    alerts: [{ severity: "medium", title: "Tiempo prolongado sin comer", detail: "Última alimentación hace 6h 20min." }]
+  },
+  sed: {
+    emotion: "ansioso", wellness: 68, heartRate: 124, temp: 39.1, activity: 50,
+    needs: [{ icon: Droplet, label: "Necesita agua", color: "#42A5F5" }],
+    aiMessage: "Temperatura ligeramente elevada y baja actividad cerca del bebedero. Probable necesidad de hidratación.",
+    alerts: [{ severity: "medium", title: "Posible deshidratación", detail: "Temperatura 39.1°C, sobre lo habitual." }]
+  },
+  sueno: {
+    emotion: "relajado", wellness: 88, heartRate: 76, temp: 38.2, activity: 8,
+    needs: [{ icon: Moon, label: "Descansando", color: "#42A5F5" }],
+    aiMessage: "Michi está en una fase de descanso profundo. Sus signos vitales bajan a niveles ideales de sueño.",
+    alerts: []
+  },
+  paseo: {
+    emotion: "jugueton", wellness: 95, heartRate: 142, temp: 38.9, activity: 96,
+    needs: [{ icon: Zap, label: "Energía alta", color: "#FFA726" }],
+    aiMessage: "Michi está en plena actividad. Excelente quema calórica y ánimo positivo.",
+    alerts: []
+  },
+};
+
+const HOURLY_TIMELINE = [
+  { time: "06:00", emotion: "relajado", value: 65 },
+  { time: "08:00", emotion: "feliz",    value: 85 },
+  { time: "10:00", emotion: "jugueton", value: 92 },
+  { time: "12:00", emotion: "relajado", value: 70 },
+  { time: "14:00", emotion: "feliz",    value: 88 },
+  { time: "16:00", emotion: "jugueton", value: 90 },
+  { time: "18:00", emotion: "ansioso",  value: 58 },
+  { time: "20:00", emotion: "feliz",    value: 82 },
+  { time: "22:00", emotion: "relajado", value: 75 },
+];
+
+const HEART_RATE_DATA = Array.from({ length: 24 }, (_, i) => ({
+  h: String(i).padStart(2, "0") + "h",
+  bpm: 70 + Math.round(40 * Math.sin(i / 3.5) + Math.random() * 18)
+}));
+
+const ACTIVITY_DATA = [
+  { day: "Lun", min: 65 }, { day: "Mar", min: 82 }, { day: "Mié", min: 48 },
+  { day: "Jue", min: 91 }, { day: "Vie", min: 73 }, { day: "Sáb", min: 105 },
+  { day: "Dom", min: 88 },
+];
+
+const PREDICTION_24H = [
+  { h: "ahora", wellness: 87 }, { h: "+3h", wellness: 78 }, { h: "+6h", wellness: 84 },
+  { h: "+9h", wellness: 91 }, { h: "+12h", wellness: 88 }, { h: "+15h", wellness: 72 },
+  { h: "+18h", wellness: 85 }, { h: "+21h", wellness: 90 }, { h: "+24h", wellness: 86 },
+];
+
+// Opiniones precargadas (mock) — daysAgo se convierte a fecha real al renderizar
+const SEED_REVIEWS = [
+  { id: "s1", rating: 5, category: "elogio", name: "Camila R.", text: "Increíble poder saber cómo se siente mi gato. La traducción IA es lo mejor de la app.", daysAgo: 2 },
+  { id: "s2", rating: 4, category: "sugerencia", name: "Diego P.", text: "Me gustaría poder agregar más de una mascota al mismo perfil. ¡Tengo dos gatos!", daysAgo: 5 },
+  { id: "s3", rating: 5, category: "elogio", name: "Valentina M.", text: "El GPS en tiempo real me ha dado mucha tranquilidad. Recomendado 100%.", daysAgo: 7 },
+  { id: "s4", rating: 3, category: "problema", name: "Joaquín S.", text: "A veces el collar pierde señal dentro de mi casa. ¿Se podría mejorar la conectividad?", daysAgo: 9 },
+  { id: "s5", rating: 5, category: "sugerencia", name: "Anónimo", text: "Sería genial integrar el calendario del veterinario para agendar visitas directamente.", daysAgo: 14 },
+  { id: "s6", rating: 4, category: "elogio", name: "Martina L.", text: "Las alertas inteligentes me ayudaron a detectar a tiempo que mi perro estaba deshidratado.", daysAgo: 18 },
+];
+
+const CATEGORIES = {
+  elogio:     { label: "Elogio",     icon: ThumbsUp,       color: "#4CAF50" },
+  sugerencia: { label: "Sugerencia", icon: Lightbulb,      color: "#AB47BC" },
+  problema:   { label: "Problema",   icon: AlertTriangle,  color: "#FFA726" },
+};
+
+const TAB_TITLES = {
+  home: "Inicio", history: "Historial", health: "Salud",
+  alerts: "Alertas", settings: "Ajustes", profile: "Perfil",
+  prediction: "Predicción IA", gps: "Ubicación GPS", feedback: "Opiniones"
+};
+
+// ============== APP ==============
+function PetionalChip() {
+  const [tab, setTab] = useState("home");
+  const [scenario, setScenario] = useState("feliz");
+  const [showSim, setShowSim] = useState(true);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const state = SCENARIOS[scenario];
+  const emotion = EMOTIONS[state.emotion];
+
+  const screens = {
+    home: <HomeScreen state={state} emotion={emotion} />,
+    history: <HistoryScreen />,
+    health: <HealthScreen state={state} />,
+    alerts: <AlertsScreen state={state} />,
+    settings: <SettingsScreen setTab={setTab} />,
+    profile: <ProfileScreen />,
+    prediction: <PredictionScreen />,
+    gps: <GpsScreen />,
+    feedback: <FeedbackScreen />,
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", padding: "24px 12px", display: "flex", justifyContent: "center" }}>
+      <div style={{ maxWidth: 420, width: "100%" }}>
+        <div style={{ background: "#1a1a1a", borderRadius: 48, padding: 12, boxShadow: "0 25px 60px rgba(0,0,0,.25), 0 0 0 2px #2a2a2a inset" }}>
+          <div style={{ background: "#F5F5F7", borderRadius: 38, overflow: "hidden", height: 780, display: "flex", flexDirection: "column", position: "relative" }}>
+            <StatusBar now={now} />
+            <AppHeader tab={tab} setTab={setTab} />
+            <div key={tab} className="screen-anim" style={{ flex: 1, overflowY: "auto", paddingBottom: 80 }}>
+              {screens[tab]}
+            </div>
+            <BottomNav tab={tab} setTab={setTab} />
+          </div>
+        </div>
+        <SimPanel scenario={scenario} setScenario={setScenario} showSim={showSim} setShowSim={setShowSim} />
+      </div>
+    </div>
+  );
+}
+
+// ============== CHROME ==============
+function StatusBar({ now }) {
+  const t = now.toTimeString().slice(0, 5);
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 24px 4px", fontSize: 13, fontWeight: 600, color: "#1C1C1E" }}>
+      <span>{t}</span>
+      <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+        <Signal size={14} /><Wifi size={14} /><BatteryFull size={16} />
+      </div>
+    </div>
+  );
+}
+
+function AppHeader({ tab, setTab }) {
+  const backable = ["profile", "prediction", "gps", "feedback"];
+  return (
+    <div style={{ padding: "8px 20px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {backable.includes(tab) && (
+          <button onClick={() => setTab("settings")} style={{ background:"transparent", border:"none", cursor:"pointer", padding:4, display:"flex" }}>
+            <ChevronLeft size={20} color="#4CAF50" />
+          </button>
+        )}
+        <div>
+          <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 500, letterSpacing: 0.5, textTransform: "uppercase" }}>PetionalChip</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#1C1C1E" }}>{TAB_TITLES[tab]}</div>
+        </div>
+      </div>
+      {tab === "home" && (
+        <div style={{ background: "#E8F5E9", color: "#2E7D32", padding: "6px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ width: 6, height: 6, background: "#4CAF50", borderRadius: 999, display: "inline-block", animation: "pulse-dot 1.6s infinite" }} />
+          Chip activo
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BottomNav({ tab, setTab }) {
+  const items = [
+    { id: "home", label: "Inicio", Icon: Home },
+    { id: "history", label: "Historial", Icon: TrendingUp },
+    { id: "health", label: "Salud", Icon: Heart },
+    { id: "alerts", label: "Alertas", Icon: Bell },
+    { id: "settings", label: "Ajustes", Icon: Settings },
+  ];
+  return (
+    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(255,255,255,.92)", backdropFilter: "blur(20px)", borderTop: "1px solid #e5e5ea", padding: "10px 8px 14px", display: "flex", justifyContent: "space-around" }}>
+      {items.map(({ id, label, Icon }) => {
+        const active = tab === id || (id === "settings" && ["profile", "prediction", "gps", "feedback"].includes(tab));
+        return (
+          <button key={id} onClick={() => setTab(id)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: active ? "#4CAF50" : "#8E8E93", transition: "all .2s" }}>
+            <Icon size={22} strokeWidth={active ? 2.4 : 1.8} />
+            <span style={{ fontSize: 10, fontWeight: active ? 600 : 500 }}>{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============== UI HELPERS ==============
+const Card = ({ children, style }) => (
+  <div style={{ background: "white", borderRadius: 18, padding: 14, boxShadow: "0 2px 8px rgba(0,0,0,.04)", ...style }}>{children}</div>
+);
+
+const SectionTitle = ({ icon: Icon, label }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+    <Icon size={15} color="#4CAF50" />
+    <div style={{ fontSize: 12, fontWeight: 700, color: "#1C1C1E", textTransform: "uppercase", letterSpacing: .4 }}>{label}</div>
+  </div>
+);
+
+function relTime(daysAgo) {
+  if (daysAgo == null) return "ahora";
+  if (daysAgo < 1) return "hoy";
+  if (daysAgo === 1) return "hace 1 día";
+  if (daysAgo < 30) return "hace " + daysAgo + " días";
+  const m = Math.floor(daysAgo / 30);
+  return "hace " + m + (m === 1 ? " mes" : " meses");
+}
+
+function relTimeFromDate(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "ahora";
+  if (mins < 60) return "hace " + mins + " min";
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return "hace " + hrs + " h";
+  const days = Math.floor(hrs / 24);
+  return relTime(days);
+}
+
+// ============== HOME ==============
+function HomeScreen({ state, emotion }) {
+  return (
+    <div style={{ padding: "8px 20px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ background: "linear-gradient(135deg,#4CAF50 0%,#2E7D32 100%)", borderRadius: 24, padding: 18, color: "white", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 8px 24px rgba(76,175,80,.3)" }}>
+        <div style={{ width: 64, height: 64, borderRadius: 999, background: "rgba(255,255,255,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, border: "3px solid rgba(255,255,255,.4)" }}>🐱</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>Michi</div>
+          <div style={{ fontSize: 12, opacity: .9 }}>Gato · 3 años · Mestizo</div>
+          <div style={{ fontSize: 11, marginTop: 4, opacity: .85, display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 6, height: 6, background: "#a5f3a5", borderRadius: 999, display: "inline-block" }} />
+            Chip conectado · Señal fuerte
+          </div>
+        </div>
+      </div>
+
+      <Card>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <WellnessRing value={state.wellness} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: .5 }}>Bienestar actual</div>
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#1C1C1E", lineHeight: 1 }}>{state.wellness}<span style={{ fontSize: 16, color: "#8E8E93" }}>%</span></div>
+            <div style={{ fontSize: 12, color: state.wellness > 80 ? "#4CAF50" : state.wellness > 60 ? "#FFA726" : "#EF5350", fontWeight: 600, marginTop: 4 }}>
+              {state.wellness > 80 ? "Excelente" : state.wellness > 60 ? "Atención" : "Requiere acción"}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle icon={Sparkles} label="Estado emocional" />
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", background: emotion.bg, borderRadius: 16, transition: "all .4s" }}>
+          <div style={{ fontSize: 42 }}>{emotion.emoji}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: emotion.color }}>{emotion.label}</div>
+            <div style={{ fontSize: 12, color: "#1C1C1E", opacity: .7 }}>Actualizado hace pocos segundos</div>
+          </div>
+        </div>
+      </Card>
+
+      <Card style={{ background: "linear-gradient(135deg,#E8F5E9 0%,#ffffff 100%)" }}>
+        <SectionTitle icon={Sparkles} label="Traducción emocional · IA" />
+        <div style={{ fontSize: 14, color: "#1C1C1E", lineHeight: 1.5, fontStyle: "italic" }}>"{state.aiMessage}"</div>
+      </Card>
+
+      <Card>
+        <SectionTitle icon={CheckCircle2} label="Necesidades detectadas" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {state.needs.map((n, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: "#F5F5F7", borderRadius: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: n.color + "22", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <n.icon size={18} color={n.color} />
+              </div>
+              <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#1C1C1E" }}>{n.label}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function WellnessRing({ value }) {
+  const R = 38, C = 2 * Math.PI * R;
+  const offset = C - (value / 100) * C;
+  return (
+    <div style={{ position: "relative", width: 92, height: 92 }}>
+      <svg width="92" height="92" viewBox="0 0 92 92">
+        <circle cx="46" cy="46" r={R} fill="none" stroke="#E8F5E9" strokeWidth="9" />
+        <circle cx="46" cy="46" r={R} fill="none" stroke="#4CAF50" strokeWidth="9" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={offset} transform="rotate(-90 46 46)" style={{ transition: "stroke-dashoffset 1s ease" }} />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🐾</div>
+    </div>
+  );
+}
+
+// ============== HEALTH ==============
+function HealthScreen({ state }) {
+  const stats = [
+    { label: "Ritmo cardíaco", value: state.heartRate, unit: "bpm", icon: Heart, color: "#EF5350" },
+    { label: "Temperatura", value: state.temp, unit: "°C", icon: Thermometer, color: "#FFA726" },
+    { label: "Horas de sueño", value: 8.4, unit: "h", icon: Moon, color: "#42A5F5" },
+    { label: "Actividad", value: state.activity, unit: "%", icon: Activity, color: "#4CAF50" },
+    { label: "Calorías", value: 184, unit: "kcal", icon: Flame, color: "#FF7043" },
+    { label: "Movimiento", value: "2.4k", unit: "pasos", icon: Footprints, color: "#7E57C2" },
+  ];
+  return (
+    <div style={{ padding: "8px 20px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {stats.map((s, i) => (
+          <div key={i} style={{ background: "white", borderRadius: 16, padding: 14, boxShadow: "0 2px 8px rgba(0,0,0,.04)" }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: s.color + "1a", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+              <s.icon size={16} color={s.color} />
+            </div>
+            <div style={{ fontSize: 10, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: .3 }}>{s.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#1C1C1E", marginTop: 2 }}>
+              {s.value}<span style={{ fontSize: 11, color: "#8E8E93", fontWeight: 500, marginLeft: 3 }}>{s.unit}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Card>
+        <SectionTitle icon={Heart} label="Ritmo cardíaco · 24h" />
+        <div style={{ height: 140 }}>
+          <ResponsiveContainer>
+            <AreaChart data={HEART_RATE_DATA} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="hr" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#EF5350" stopOpacity={.4} />
+                  <stop offset="100%" stopColor="#EF5350" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="h" tick={{ fontSize: 9, fill: "#8E8E93" }} interval={3} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: "#8E8E93" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 16px rgba(0,0,0,.1)", fontSize: 12 }} />
+              <Area type="monotone" dataKey="bpm" stroke="#EF5350" strokeWidth={2} fill="url(#hr)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle icon={Activity} label="Actividad semanal (min)" />
+        <div style={{ height: 140 }}>
+          <ResponsiveContainer>
+            <BarChart data={ACTIVITY_DATA} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+              <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#8E8E93" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: "#8E8E93" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 16px rgba(0,0,0,.1)", fontSize: 12 }} />
+              <Bar dataKey="min" fill="#4CAF50" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ============== HISTORY ==============
+function HistoryScreen() {
+  return (
+    <div style={{ padding: "8px 20px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+      <Card>
+        <SectionTitle icon={TrendingUp} label="Evolución emocional · hoy" />
+        <div style={{ height: 160 }}>
+          <ResponsiveContainer>
+            <AreaChart data={HOURLY_TIMELINE} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="ev" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4CAF50" stopOpacity={.5} />
+                  <stop offset="100%" stopColor="#4CAF50" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="time" tick={{ fontSize: 9, fill: "#8E8E93" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: "#8E8E93" }} axisLine={false} tickLine={false} domain={[0, 100]} />
+              <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 16px rgba(0,0,0,.1)", fontSize: 12 }} />
+              <Area type="monotone" dataKey="value" stroke="#4CAF50" strokeWidth={2.5} fill="url(#ev)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle icon={Sparkles} label="Línea de tiempo emocional" />
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {HOURLY_TIMELINE.map((t, i) => {
+            const e = EMOTIONS[t.emotion];
+            return (
+              <div key={i} style={{ display: "flex", gap: 12, padding: "8px 0", alignItems: "center" }}>
+                <div style={{ fontSize: 11, color: "#8E8E93", width: 42, fontWeight: 600 }}>{t.time}</div>
+                <div style={{ width: 12, height: 12, borderRadius: 999, background: e.color, boxShadow: "0 0 0 4px " + e.bg }} />
+                <div style={{ flex: 1, fontSize: 13, color: "#1C1C1E", fontWeight: 500 }}>{e.emoji} {e.label}</div>
+                <div style={{ fontSize: 11, color: "#8E8E93" }}>{t.value}%</div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ============== ALERTS ==============
+function AlertsScreen({ state }) {
+  const [open, setOpen] = useState(null);
+  const defaultAlerts = [
+    { severity: "low", title: "Hora de cepillado recomendada", detail: "Han pasado 3 días desde el último registro." },
+    { severity: "low", title: "Próxima visita al veterinario", detail: "Control anual en 12 días (Dr. Reyes)." },
+  ];
+  const all = [...state.alerts, ...defaultAlerts];
+  const sevColor = { high: "#EF5350", medium: "#FFA726", low: "#42A5F5" };
+  const sevLabel = { high: "Alta", medium: "Media", low: "Informativa" };
+  return (
+    <div style={{ padding: "8px 20px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {all.map((a, i) => (
+        <div key={i} onClick={() => setOpen(open === i ? null : i)} style={{ background: "white", borderRadius: 16, padding: 14, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.04)", borderLeft: "4px solid " + sevColor[a.severity] }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <AlertTriangle size={20} color={sevColor[a.severity]} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E" }}>{a.title}</div>
+              <div style={{ fontSize: 10, color: sevColor[a.severity], fontWeight: 600, textTransform: "uppercase", letterSpacing: .3 }}>Prioridad {sevLabel[a.severity]}</div>
+            </div>
+            <ChevronRight size={16} color="#8E8E93" />
+          </div>
+          {open === i && (
+            <div style={{ marginTop: 10, padding: 10, background: "#F5F5F7", borderRadius: 10, fontSize: 12, color: "#1C1C1E" }}>{a.detail}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============== SETTINGS ==============
+function SettingsScreen({ setTab }) {
+  const items = [
+    { id: "profile", label: "Perfil del dueño", icon: User, color: "#4CAF50" },
+    { id: "prediction", label: "Predicción de bienestar · IA", icon: Sparkles, color: "#AB47BC", badge: "Nuevo" },
+    { id: "gps", label: "Ubicación GPS", icon: MapPin, color: "#42A5F5" },
+    { id: "feedback", label: "Opiniones y sugerencias", icon: MessageSquare, color: "#FFB300" },
+  ];
+  return (
+    <div style={{ padding: "8px 20px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {items.map(it => (
+        <div key={it.id} onClick={() => setTab(it.id)} style={{ background: "white", borderRadius: 16, padding: 14, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.04)", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: it.color + "1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <it.icon size={18} color={it.color} />
+          </div>
+          <div style={{ flex: 1, fontWeight: 600, color: "#1C1C1E", fontSize: 14 }}>{it.label}</div>
+          {it.badge && <span style={{ background: "#E8F5E9", color: "#2E7D32", padding: "3px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700 }}>{it.badge}</span>}
+          <ChevronRight size={18} color="#8E8E93" />
+        </div>
+      ))}
+      <div style={{ marginTop: 12, fontSize: 11, color: "#8E8E93", textAlign: "center" }}>PetionalChip v1.0 · Conectado al collar #PC-8472</div>
+    </div>
+  );
+}
+
+// ============== PROFILE ==============
+function ProfileScreen() {
+  const info = [
+    { icon: User, label: "Nombre", value: "Santiago Ramírez" },
+    { icon: Phone, label: "Teléfono", value: "+56 9 1234 5678" },
+    { icon: Mail, label: "Correo", value: "santiago@petional.cl" },
+    { icon: Stethoscope, label: "Veterinario", value: "Dr. Felipe Reyes · Clínica VetCare" },
+    { icon: AlertTriangle, label: "Contacto de emergencia", value: "María Ramírez · +56 9 8765 4321" },
+  ];
+  return (
+    <div style={{ padding: "8px 20px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ background: "linear-gradient(135deg,#4CAF50,#2E7D32)", borderRadius: 20, padding: 18, color: "white", textAlign: "center" }}>
+        <div style={{ width: 70, height: 70, borderRadius: 999, background: "rgba(255,255,255,.2)", margin: "0 auto 8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>👤</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>Santiago Ramírez</div>
+        <div style={{ fontSize: 12, opacity: .9 }}>Dueño de Michi · Cuenta Premium</div>
+      </div>
+      {info.map((it, i) => (
+        <div key={i} style={{ background: "white", borderRadius: 14, padding: 12, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 6px rgba(0,0,0,.03)" }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F5E9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <it.icon size={16} color="#4CAF50" />
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: .3 }}>{it.label}</div>
+            <div style={{ fontSize: 13, color: "#1C1C1E", fontWeight: 500 }}>{it.value}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============== PREDICTION ==============
+function PredictionScreen() {
+  return (
+    <div style={{ padding: "8px 20px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+      <Card style={{ background: "linear-gradient(135deg,#F3E5F5 0%,#ffffff 100%)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+          <Sparkles size={18} color="#AB47BC" />
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1C1C1E" }}>Próximas 24 horas</div>
+        </div>
+        <div style={{ fontSize: 12, color: "#1C1C1E", opacity: .8, lineHeight: 1.5 }}>
+          Nuestro modelo predictivo estima la evolución del bienestar de Michi en base a sus patrones de sueño, actividad y emociones recientes.
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle icon={TrendingUp} label="Bienestar proyectado" />
+        <div style={{ height: 160 }}>
+          <ResponsiveContainer>
+            <AreaChart data={PREDICTION_24H} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="pred" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#AB47BC" stopOpacity={.5} />
+                  <stop offset="100%" stopColor="#AB47BC" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="h" tick={{ fontSize: 9, fill: "#8E8E93" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: "#8E8E93" }} axisLine={false} tickLine={false} domain={[40, 100]} />
+              <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 16px rgba(0,0,0,.1)", fontSize: 12 }} />
+              <Area type="monotone" dataKey="wellness" stroke="#AB47BC" strokeWidth={2.5} fill="url(#pred)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle icon={Sparkles} label="Insights de la IA" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[
+            { icon: Cloud, color: "#FFA726", text: "Posible baja de ánimo entre las 18:00 y 21:00 por menor actividad estimada." },
+            { icon: Sun, color: "#4CAF50", text: "Excelente ventana para juego activo: 09:00–11:00 mañana." },
+            { icon: Moon, color: "#42A5F5", text: "Patrón de sueño profundo previsto entre 02:00 y 05:00." },
+          ].map((i, k) => (
+            <div key={k} style={{ display: "flex", gap: 10, padding: 10, background: "#F5F5F7", borderRadius: 12, alignItems: "center" }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: i.color + "22", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <i.icon size={15} color={i.color} />
+              </div>
+              <div style={{ fontSize: 12, color: "#1C1C1E", flex: 1 }}>{i.text}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ============== GPS ==============
+function GpsScreen() {
+  const [pos, setPos] = useState(0);
+  const [live, setLive] = useState(false);
+  useEffect(() => {
+    if (!live) return;
+    const t = setInterval(() => setPos(p => (p + 1) % 100), 100);
+    return () => clearInterval(t);
+  }, [live]);
+
+  const route = [[40, 220], [80, 200], [120, 180], [160, 150], [200, 140], [230, 120], [255, 100], [280, 90], [300, 80]];
+  const t = pos / 100 * (route.length - 1);
+  const i = Math.floor(t), f = t - i;
+  const a = route[i], b = route[Math.min(i + 1, route.length - 1)];
+  const cx = a[0] + (b[0] - a[0]) * f;
+  const cy = a[1] + (b[1] - a[1]) * f;
+
+  return (
+    <div style={{ padding: "8px 20px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ position: "relative", height: 260, background: "linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 100%)" }}>
+          <svg width="100%" height="100%" viewBox="0 0 340 260" style={{ position: "absolute", inset: 0 }}>
+            <line x1="0" y1="80" x2="340" y2="80" stroke="#fff" strokeWidth="14" opacity=".7" />
+            <line x1="0" y1="180" x2="340" y2="180" stroke="#fff" strokeWidth="10" opacity=".6" />
+            <line x1="100" y1="0" x2="100" y2="260" stroke="#fff" strokeWidth="10" opacity=".6" />
+            <line x1="230" y1="0" x2="230" y2="260" stroke="#fff" strokeWidth="14" opacity=".7" />
+            <rect x="20" y="200" width="60" height="40" rx="6" fill="#A5D6A7" />
+            <rect x="260" y="20" width="60" height="50" rx="6" fill="#A5D6A7" />
+            <polyline points={route.map(p => p.join(",")).join(" ")} fill="none" stroke="#4CAF50" strokeWidth="4" strokeLinecap="round" strokeDasharray="6 4" />
+            <circle cx={route[0][0]} cy={route[0][1]} r="6" fill="#42A5F5" stroke="white" strokeWidth="2" />
+            <circle cx={route[route.length-1][0]} cy={route[route.length-1][1]} r="6" fill="#EF5350" stroke="white" strokeWidth="2" />
+            <circle cx={cx} cy={cy} r="14" fill="#4CAF50" opacity=".25">
+              {live && <animate attributeName="r" values="10;20;10" dur="1.5s" repeatCount="indefinite" />}
+            </circle>
+            <circle cx={cx} cy={cy} r="8" fill="#4CAF50" stroke="white" strokeWidth="3" />
+          </svg>
+        </div>
+        <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <MapPin size={18} color="#4CAF50" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#1C1C1E" }}>Av. Libertad 1234, Viña del Mar</div>
+              <div style={{ fontSize: 11, color: "#8E8E93" }}>{live ? "Seguimiento en vivo" : "Última ubicación · hace 2 min"}</div>
+            </div>
+          </div>
+          <button onClick={() => setLive(!live)} style={{ background: live ? "#EF5350" : "#4CAF50", color: "white", border: "none", padding: "12px 16px", borderRadius: 14, fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            {live ? <><Pause size={16} color="white" /> Detener seguimiento</> : <><Play size={16} color="white" /> Ver ubicación en tiempo real</>}
+          </button>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle icon={MapPin} label="Resumen del día" />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <Stat label="Distancia" value="1.8" unit="km" />
+          <Stat label="Paseos" value="2" unit="hoy" />
+          <Stat label="Tiempo fuera" value="48" unit="min" />
+          <Stat label="Zona segura" value="✓" unit="dentro" />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+const Stat = ({ label, value, unit }) => (
+  <div style={{ background: "#F5F5F7", borderRadius: 12, padding: 10 }}>
+    <div style={{ fontSize: 10, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: .3 }}>{label}</div>
+    <div style={{ fontSize: 18, fontWeight: 700, color: "#1C1C1E" }}>
+      {value}<span style={{ fontSize: 11, color: "#8E8E93", marginLeft: 3 }}>{unit}</span>
+    </div>
+  </div>
+);
+
+// ============== FEEDBACK / OPINIONES ==============
+function FeedbackScreen() {
+  // Cargar opiniones del usuario desde localStorage
+  const [userReviews, setUserReviews] = useState(() => {
+    try {
+      const raw = localStorage.getItem("petionalchip-reviews");
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
+
+  const [filter, setFilter] = useState("all");
+  const [formOpen, setFormOpen] = useState(false);
+  const [thanks, setThanks] = useState(false);
+
+  // Form state
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [category, setCategory] = useState("sugerencia");
+  const [text, setText] = useState("");
+  const [name, setName] = useState("");
+
+  // Convertir todas las reseñas a formato uniforme con fecha relativa
+  const allReviews = [
+    ...userReviews.map(r => ({ ...r, isUser: true })),
+    ...SEED_REVIEWS,
+  ];
+
+  const filtered = filter === "all" ? allReviews : allReviews.filter(r => r.category === filter);
+
+  // Stats
+  const avg = allReviews.reduce((a, b) => a + b.rating, 0) / allReviews.length;
+  const dist = [5, 4, 3, 2, 1].map(n => ({
+    stars: n,
+    count: allReviews.filter(r => r.rating === n).length,
+  }));
+  const maxCount = Math.max(...dist.map(d => d.count), 1);
+
+  const resetForm = () => {
+    setRating(0); setHover(0); setCategory("sugerencia"); setText(""); setName("");
+  };
+
+  const submit = () => {
+    if (!rating || !text.trim()) return;
+    const newRev = {
+      id: "u" + Date.now(),
+      rating,
+      category,
+      text: text.trim(),
+      name: name.trim() || "Anónimo",
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [newRev, ...userReviews];
+    setUserReviews(updated);
+    try { localStorage.setItem("petionalchip-reviews", JSON.stringify(updated)); } catch {}
+    resetForm();
+    setFormOpen(false);
+    setThanks(true);
+    setTimeout(() => setThanks(false), 2800);
+  };
+
+  const canSubmit = rating > 0 && text.trim().length >= 4;
+
+  return (
+    <div style={{ padding: "8px 20px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Thanks toast */}
+      {thanks && (
+        <div className="pop-in" style={{ background: "#4CAF50", color: "white", padding: "12px 14px", borderRadius: 14, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 6px 20px rgba(76,175,80,.35)" }}>
+          <CheckCircle2 size={20} color="white" />
+          <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>¡Gracias por tu opinión!</div>
+        </div>
+      )}
+
+      {/* Resumen */}
+      <Card style={{ background: "linear-gradient(135deg,#FFF8E1 0%,#ffffff 100%)" }}>
+        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          <div style={{ textAlign: "center", minWidth: 80 }}>
+            <div style={{ fontSize: 38, fontWeight: 800, color: "#1C1C1E", lineHeight: 1 }}>{avg.toFixed(1)}</div>
+            <div style={{ display: "flex", gap: 2, justifyContent: "center", marginTop: 4 }}>
+              {[1,2,3,4,5].map(n =>
+                <Star key={n} size={13} color="#FFB300" filled={n <= Math.round(avg)} />
+              )}
+            </div>
+            <div style={{ fontSize: 10, color: "#8E8E93", marginTop: 4, fontWeight: 600 }}>{allReviews.length} opiniones</div>
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+            {dist.map(d => (
+              <div key={d.stars} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 10, color: "#8E8E93", fontWeight: 600, width: 14 }}>{d.stars}★</span>
+                <div style={{ flex: 1, height: 6, background: "#F0E5C8", borderRadius: 999, overflow: "hidden" }}>
+                  <div style={{ width: (d.count / maxCount * 100) + "%", height: "100%", background: "#FFB300", borderRadius: 999, transition: "width .5s ease" }} />
+                </div>
+                <span style={{ fontSize: 10, color: "#8E8E93", fontWeight: 600, width: 14, textAlign: "right" }}>{d.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      {/* Botón nueva opinión */}
+      {!formOpen && (
+        <button onClick={() => setFormOpen(true)} style={{
+          background: "linear-gradient(135deg,#4CAF50 0%,#2E7D32 100%)", color: "white", border: "none",
+          padding: "14px 16px", borderRadius: 16, fontWeight: 700, fontSize: 14, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+          boxShadow: "0 6px 18px rgba(76,175,80,.3)"
+        }}>
+          <MessageSquare size={16} color="white" />
+          Dejar mi opinión
+        </button>
+      )}
+
+      {/* Formulario */}
+      {formOpen && (
+        <Card style={{ border: "2px solid #4CAF50" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1C1C1E", marginBottom: 12 }}>Comparte tu experiencia</div>
+
+          {/* Estrellas */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: .3, marginBottom: 6 }}>Tu calificación</div>
+            <div style={{ display: "flex", gap: 6, justifyContent: "center", padding: "6px 0" }}>
+              {[1,2,3,4,5].map(n => (
+                <button
+                  key={n}
+                  onClick={() => setRating(n)}
+                  onMouseEnter={() => setHover(n)}
+                  onMouseLeave={() => setHover(0)}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 4, transition: "transform .15s", transform: (hover === n) ? "scale(1.15)" : "scale(1)" }}
+                >
+                  <Star size={32} color="#FFB300" filled={n <= (hover || rating)} strokeWidth={1.8} />
+                </button>
+              ))}
+            </div>
+            {rating > 0 && (
+              <div style={{ textAlign: "center", fontSize: 11, color: "#8E8E93", marginTop: 2 }}>
+                {["", "Muy mala", "Mala", "Regular", "Buena", "Excelente"][rating]}
+              </div>
+            )}
+          </div>
+
+          {/* Categoría */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: .3, marginBottom: 6 }}>Tipo</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
+              {Object.entries(CATEGORIES).map(([key, c]) => {
+                const active = category === key;
+                return (
+                  <button key={key} onClick={() => setCategory(key)} style={{
+                    background: active ? c.color : "#F5F5F7",
+                    color: active ? "white" : "#1C1C1E",
+                    border: "none", borderRadius: 10, padding: "8px 4px", cursor: "pointer",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                    transition: "all .2s"
+                  }}>
+                    <c.icon size={14} color={active ? "white" : c.color} />
+                    <span style={{ fontSize: 11, fontWeight: 600 }}>{c.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Texto */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: .3, marginBottom: 6 }}>Tu opinión</div>
+            <textarea
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder="Cuéntanos qué piensas, qué te gustaría mejorar o qué te encantó…"
+              rows={4}
+              maxLength={400}
+              style={{
+                width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e5ea",
+                fontSize: 13, color: "#1C1C1E", resize: "none", outline: "none", background: "#F5F5F7"
+              }}
+            />
+            <div style={{ fontSize: 10, color: "#8E8E93", textAlign: "right", marginTop: 2 }}>{text.length}/400</div>
+          </div>
+
+          {/* Nombre */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: .3, marginBottom: 6 }}>Tu nombre (opcional)</div>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Ej: Santiago R."
+              maxLength={40}
+              style={{
+                width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e5ea",
+                fontSize: 13, color: "#1C1C1E", outline: "none", background: "#F5F5F7"
+              }}
+            />
+          </div>
+
+          {/* Acciones */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { resetForm(); setFormOpen(false); }} style={{
+              flex: 1, background: "#F5F5F7", color: "#1C1C1E", border: "none",
+              padding: "12px", borderRadius: 12, fontWeight: 600, fontSize: 13, cursor: "pointer"
+            }}>Cancelar</button>
+            <button onClick={submit} disabled={!canSubmit} style={{
+              flex: 2, background: canSubmit ? "#4CAF50" : "#C8E6C9",
+              color: "white", border: "none", padding: "12px", borderRadius: 12,
+              fontWeight: 700, fontSize: 13, cursor: canSubmit ? "pointer" : "not-allowed",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6
+            }}>
+              <Send size={14} color="white" />
+              Enviar opinión
+            </button>
+          </div>
+        </Card>
+      )}
+
+      {/* Filtros */}
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+        {[
+          { id: "all", label: "Todas" },
+          { id: "elogio", label: "Elogios" },
+          { id: "sugerencia", label: "Sugerencias" },
+          { id: "problema", label: "Problemas" },
+        ].map(f => {
+          const active = filter === f.id;
+          return (
+            <button key={f.id} onClick={() => setFilter(f.id)} style={{
+              background: active ? "#1C1C1E" : "white",
+              color: active ? "white" : "#1C1C1E",
+              border: "1px solid " + (active ? "#1C1C1E" : "#e5e5ea"),
+              padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+              cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0
+            }}>{f.label}</button>
+          );
+        })}
+      </div>
+
+      {/* Lista de opiniones */}
+      {filtered.length === 0 ? (
+        <Card>
+          <div style={{ textAlign: "center", padding: 16, color: "#8E8E93", fontSize: 13 }}>
+            No hay opiniones en esta categoría todavía.
+          </div>
+        </Card>
+      ) : (
+        filtered.map(r => <ReviewCard key={r.id} review={r} />)
+      )}
+
+      <div style={{ marginTop: 4, fontSize: 11, color: "#8E8E93", textAlign: "center", lineHeight: 1.5 }}>
+        Tus opiniones quedan guardadas en este dispositivo.<br/>
+        Gracias por ayudarnos a mejorar PetionalChip 🐾
+      </div>
+    </div>
+  );
+}
+
+function ReviewCard({ review }) {
+  const cat = CATEGORIES[review.category];
+  const initial = (review.name || "?").charAt(0).toUpperCase();
+  const when = review.isUser ? relTimeFromDate(review.createdAt) : relTime(review.daysAgo);
+  return (
+    <Card>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 999, flexShrink: 0,
+          background: "linear-gradient(135deg," + cat.color + "," + cat.color + "cc)",
+          color: "white", display: "flex", alignItems: "center", justifyContent: "center",
+          fontWeight: 700, fontSize: 14
+        }}>{initial}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#1C1C1E" }}>{review.name}</div>
+            <div style={{ fontSize: 10, color: "#8E8E93", fontWeight: 500 }}>{when}</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
+            <div style={{ display: "flex", gap: 1 }}>
+              {[1,2,3,4,5].map(n =>
+                <Star key={n} size={11} color="#FFB300" filled={n <= review.rating} />
+              )}
+            </div>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 3,
+              background: cat.color + "22", color: cat.color,
+              padding: "2px 7px", borderRadius: 999, fontSize: 10, fontWeight: 700
+            }}>
+              <cat.icon size={10} color={cat.color} />
+              {cat.label}
+            </div>
+            {review.isUser && (
+              <div style={{ background: "#E8F5E9", color: "#2E7D32", padding: "2px 6px", borderRadius: 999, fontSize: 9, fontWeight: 700 }}>Tú</div>
+            )}
+          </div>
+          <div style={{ fontSize: 12.5, color: "#1C1C1E", lineHeight: 1.5, marginTop: 7 }}>
+            {review.text}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ============== SIM PANEL ==============
+function SimPanel({ scenario, setScenario, showSim, setShowSim }) {
+  const sims = [
+    { id: "feliz", label: "Felicidad", emoji: "😊" },
+    { id: "estres", label: "Estrés", emoji: "😨" },
+    { id: "hambre", label: "Hambre", emoji: "🥺" },
+    { id: "sed", label: "Sed", emoji: "💧" },
+    { id: "sueno", label: "Sueño", emoji: "😴" },
+    { id: "paseo", label: "Paseo", emoji: "🏃" },
+  ];
+  return (
+    <div style={{ marginTop: 18, background: "white", borderRadius: 20, padding: 16, boxShadow: "0 8px 24px rgba(0,0,0,.08)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showSim ? 12 : 0 }}>
+        <div>
+          <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 600, textTransform: "uppercase", letterSpacing: .5 }}>Panel de demostración</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1C1C1E" }}>Simular escenario</div>
+        </div>
+        <button onClick={() => setShowSim(!showSim)} style={{ background: "#F5F5F7", border: "none", borderRadius: 999, padding: "6px 12px", fontSize: 11, fontWeight: 600, color: "#1C1C1E", cursor: "pointer" }}>
+          {showSim ? "Ocultar" : "Mostrar"}
+        </button>
+      </div>
+      {showSim && (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+            {sims.map(s => {
+              const active = scenario === s.id;
+              return (
+                <button key={s.id} onClick={() => setScenario(s.id)} style={{ background: active ? "#4CAF50" : "#F5F5F7", color: active ? "white" : "#1C1C1E", border: "none", borderRadius: 12, padding: "10px 6px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, transition: "all .2s", boxShadow: active ? "0 4px 12px rgba(76,175,80,.3)" : "none" }}>
+                  <span style={{ fontSize: 20 }}>{s.emoji}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600 }}>{s.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 10, fontSize: 10, color: "#8E8E93", textAlign: "center", lineHeight: 1.4 }}>
+            Cambia el estado en tiempo real para demostrar la respuesta de la app.
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============== RENDER ==============
+ReactDOM.createRoot(document.getElementById("root")).render(<PetionalChip />);
+</script>
+</body>
+</html>
