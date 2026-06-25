@@ -1228,7 +1228,17 @@ function DocumentsScreen({documents, onSaveDoc, accent, showToast}){
               <div style={{color:"#fff",fontSize:14,fontWeight:600,fontFamily:"monospace"}}>{cedula.run||'—'}</div>
             </div>
           </div>
-          <div style={{display:"flex",gap:14,position:"relative",borderTop:"1px solid rgba(255,255,255,0.15)",paddingTop:12}}>
+          <div style={{display:"flex",gap:14,position:"relative",borderTop:"1px solid rgba(255,255,255,0.15)",paddingTop:12,marginBottom:10}}>
+            <div style={{flex:1}}>
+              <div style={{color:"rgba(255,255,255,0.6)",fontSize:9,fontWeight:600,textTransform:"uppercase",letterSpacing:.8}}>N° Documento</div>
+              <div style={{color:"#fff",fontSize:12,fontWeight:600,marginTop:2,fontFamily:"monospace"}}>{cedula.n_documento||'—'}</div>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{color:"rgba(255,255,255,0.6)",fontSize:9,fontWeight:600,textTransform:"uppercase",letterSpacing:.8}}>Nacionalidad</div>
+              <div style={{color:"#fff",fontSize:12,fontWeight:600,marginTop:2}}>{cedula.nacionalidad||'Chilena'}</div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:14,position:"relative"}}>
             <div style={{flex:1}}>
               <div style={{color:"rgba(255,255,255,0.6)",fontSize:9,fontWeight:600,textTransform:"uppercase",letterSpacing:.8}}>Nacimiento</div>
               <div style={{color:"#fff",fontSize:12,fontWeight:600,marginTop:2}}>{cedula.nacimiento||'—'}</div>
@@ -1237,14 +1247,10 @@ function DocumentsScreen({documents, onSaveDoc, accent, showToast}){
               <div style={{color:"rgba(255,255,255,0.6)",fontSize:9,fontWeight:600,textTransform:"uppercase",letterSpacing:.8}}>Vence</div>
               <div style={{color:"#fff",fontSize:12,fontWeight:600,marginTop:2}}>{cedula.vencimiento||'—'}</div>
             </div>
-            <div style={{flex:1}}>
-              <div style={{color:"rgba(255,255,255,0.6)",fontSize:9,fontWeight:600,textTransform:"uppercase",letterSpacing:.8}}>Nacionalidad</div>
-              <div style={{color:"#fff",fontSize:12,fontWeight:600,marginTop:2}}>{cedula.nacionalidad||'Chilena'}</div>
-            </div>
           </div>
         </div>
       ) : (
-        <button onClick={()=>setEditing({type:'cedula', data:{nombres:'',apellidos:'',run:'',nacimiento:'',vencimiento:'',nacionalidad:'Chilena',sexo:'M',profesion:'',foto:''}})}
+        <button onClick={()=>setEditing({type:'cedula', data:{nombres:'',apellidos:'',run:'',n_documento:'',nacimiento:'',vencimiento:'',nacionalidad:'Chilena',sexo:'M',profesion:'',foto:''}})}
           style={{margin:"0 20px 22px",width:"calc(100% - 40px)",padding:"22px",borderRadius:18,
             background:"var(--surf,#fff)",border:`2px dashed ${CEDULA_COLORS.gA}`,
             color:CEDULA_COLORS.gA,fontSize:14,fontWeight:700,fontFamily:"'Inter',sans-serif",cursor:"pointer",
@@ -1424,6 +1430,10 @@ function DocumentEditModal({docType, data, onClose, onSave, onDelete, accent, co
 
         {isCedula ? (
           <>
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>N° de Documento</div>
+              <input className="inp" value={d.n_documento||''} onChange={e=>upd('n_documento',e.target.value)} placeholder="Ej: BA3.011.075"/>
+            </div>
             <div style={{display:"flex",gap:10,marginBottom:10}}>
               <div style={{flex:1}}>
                 <div style={{fontSize:11,fontWeight:700,color:"var(--t3,#9CA3AF)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:6}}>Nacimiento</div>
